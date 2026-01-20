@@ -1,7 +1,7 @@
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import jwt from "jsonwebtoken";
-import { User } from "../models/user.model.js";
+import { User } from "../model/user.model.js";
 export const verifyJWT = asyncHandler(async (req, res, next) => {
   try {
     //get access token from cookies
@@ -13,10 +13,10 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
     }
     const decodedToken = await jwt.verify(
       token,
-      process.env.ACCESS_TOKEN_SECRET
+      process.env.ACCESS_TOKEN_SECRET,
     );
     const user = await User.findById(decodedToken?._id).select(
-      "-password -refreshToken"
+      "-password -refreshToken",
     );
     if (!user) {
       throw new ApiError(401, "Invalid Access Token");
@@ -27,3 +27,18 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, "Invalid Access Token");
   }
 });
+
+export const checkRole = (allowedRoles) => {
+  return asyncHandler(async (req, res, next) => {
+    if (!req.user) {
+      throw new ApiError(401, "Authentication required");
+    }
+    if (!allowedRoles.includes(req.user.role)) {
+      throw new ApiError(
+        403,
+        `Access Denied: ${req.user.role} role does not have permission`,
+      );
+    }
+    next();
+  });
+};
