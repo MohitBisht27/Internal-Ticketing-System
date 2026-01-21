@@ -50,6 +50,11 @@ const ticketSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    isOverdue: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     attachments: [
       {
         url: String,
@@ -58,17 +63,17 @@ const ticketSchema = new mongoose.Schema(
     ],
     tags: [{ type: String }],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
-ticketSchema.pre("validate", async function (next) {
+
+ticketSchema.pre("validate", function () {
   if (this.isNew) {
     const hours = { low: 72, medium: 48, high: 24, critical: 4 };
     this.deadline = new Date(
-      Date.now() + hours[this.priority] * 60 * 60 * 1000
+      Date.now() + hours[this.priority] * 60 * 60 * 1000,
     );
     this.ticketId = `TIC-${Math.floor(100000 + Math.random() * 900000)}`;
   }
-  next();
 });
 
 export const Ticket = mongoose.model("Ticket", ticketSchema);
