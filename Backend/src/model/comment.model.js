@@ -8,6 +8,12 @@ const commentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    parentComment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+      default: null,
+    },
+
     author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -32,8 +38,14 @@ const commentSchema = new mongoose.Schema(
       enum: ["message", "activity"],
       default: "message",
     },
+    editedAt: { type: Date, default: null },
+    lastEditedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export const Comment = mongoose.model("Comment", commentSchema);
