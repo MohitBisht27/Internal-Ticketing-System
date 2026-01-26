@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Register from "./pages/Register";
+import SignIn from "./pages/Sigin";
 
 function App() {
   return (
@@ -8,14 +9,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Register />} />
           <Route path="/register" element={<Register />} />
-          <Route
-            path="/login"
-            element={
-              <div className="min-h-screen flex items-center justify-center text-2xl">
-                Login Page Coming Soon...
-              </div>
-            }
-          />
+          <Route path="/login" element={<SignIn></SignIn>} />
         </Routes>
       </div>
     </Router>
