@@ -12,12 +12,22 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
+const baseQueryWithErrorHandling = async (args, api, extraOptions) => {
+  const result = await baseQuery(args, api, extraOptions);
+
+  if (result.error) {
+    console.error("API Error:", result.error);
+  }
+
+  return result;
+};
+
 export const ticketApi = createApi({
   reducerPath: "ticketApi",
-  baseQuery,
+  baseQuery: baseQueryWithErrorHandling,
   tagTypes: ["Ticket", "Stats", "Performance"],
   endpoints: (builder) => ({
-    // Create ticket
+    // Create ticket - POST /tickets
     createTicket: builder.mutation({
       query: (formData) => ({
         url: "/tickets",
@@ -28,37 +38,47 @@ export const ticketApi = createApi({
       transformResponse: (response) => response.data,
     }),
 
-    // Get tickets (role-based)
+    // Get tickets (role-based) - GET /tickets
     getTickets: builder.query({
-      query: (params) => {
-        const queryString = new URLSearchParams(params).toString();
-        return `/tickets?${queryString}`;
+      query: (params = {}) => {
+        const filteredParams = Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined,
+          ),
+        );
+        const queryString = new URLSearchParams(filteredParams).toString();
+        return `/tickets${queryString ? `?${queryString}` : ""}`;
       },
       providesTags: ["Ticket"],
       transformResponse: (response) => response.data,
     }),
 
-    // Get all tickets (admin only)
+    // Get all tickets (admin only) - GET /tickets/admin/all
     getAllTickets: builder.query({
-      query: (params) => {
-        const queryString = new URLSearchParams(params).toString();
-        return `/tickets/all?${queryString}`;
+      query: (params = {}) => {
+        const filteredParams = Object.fromEntries(
+          Object.entries(params).filter(
+            ([_, v]) => v !== "" && v !== undefined,
+          ),
+        );
+        const queryString = new URLSearchParams(filteredParams).toString();
+        return `/tickets/admin/all${queryString ? `?${queryString}` : ""}`;
       },
       providesTags: ["Ticket"],
       transformResponse: (response) => response.data,
     }),
 
-    // Get single ticket
+    // Get single ticket - GET /tickets/:ticketId
     getTicketById: builder.query({
       query: (ticketId) => `/tickets/${ticketId}`,
       providesTags: (result, error, id) => [{ type: "Ticket", id }],
       transformResponse: (response) => response.data,
     }),
 
-    // Update ticket status
+    // Update ticket status - PATCH /tickets/:ticketId
     updateTicketStatus: builder.mutation({
       query: ({ ticketId, status }) => ({
-        url: `/tickets/${ticketId}/status`,
+        url: `/tickets/${ticketId}`,
         method: "PATCH",
         body: { status },
       }),
@@ -66,7 +86,7 @@ export const ticketApi = createApi({
       transformResponse: (response) => response.data,
     }),
 
-    // Assign ticket
+    // Assign ticket - PATCH /tickets/:ticketId/assign
     assignTicket: builder.mutation({
       query: ({ ticketId, agentId }) => ({
         url: `/tickets/${ticketId}/assign`,
@@ -77,31 +97,31 @@ export const ticketApi = createApi({
       transformResponse: (response) => response.data,
     }),
 
-    // Get ticket stats
+    // Get ticket stats - GET /tickets/stats
     getTicketStats: builder.query({
       query: () => "/tickets/stats",
       providesTags: ["Stats"],
       transformResponse: (response) => response.data,
     }),
 
-    // Get agent performance
+    // Get agent performance - GET /tickets/performance
     getAgentPerformance: builder.query({
       query: () => "/tickets/performance",
       providesTags: ["Performance"],
       transformResponse: (response) => response.data,
     }),
 
-    // Update overdue tickets
+    // Update overdue tickets - PATCH /tickets/update-overdue
     updateOverdueTickets: builder.mutation({
       query: () => ({
-        url: "/tickets/overdue",
+        url: "/tickets/update-overdue",
         method: "PATCH",
       }),
       invalidatesTags: ["Ticket", "Stats"],
       transformResponse: (response) => response.data,
     }),
 
-    // Get agents list (for assignment)
+    // Get agents list (for assignment dropdown)
     getAgents: builder.query({
       query: () => "/users/agents",
       transformResponse: (response) => response.data,
