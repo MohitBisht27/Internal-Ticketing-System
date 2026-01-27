@@ -3,7 +3,7 @@ import { X, UserPlus, Loader2, AlertCircle } from "lucide-react";
 import {
   useGetAgentsQuery,
   useAssignTicketMutation,
-} from "../../features/tickets/ticketApi";
+} from "../../features/tickets/ticketSlice";
 
 const AssignModal = ({ ticket, onClose }) => {
   const [selectedAgent, setSelectedAgent] = useState(
