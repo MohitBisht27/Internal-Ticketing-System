@@ -8,6 +8,9 @@ import cloudinary from "cloudinary";
 const options = {
   httpOnly: true,
   secure: true,
+  sameSite: "strict",
+  maxAge: 1 * 24 * 60 * 60 * 1000,
+  path: "/",
 };
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
