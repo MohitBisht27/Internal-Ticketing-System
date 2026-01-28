@@ -1,5 +1,12 @@
+import Register from "./pages/Register";
+import SignIn from "./pages/Signin";
 function App() {
-  return <h1>Working</h1>;
+  return (
+    <div>
+      <Register></Register>
+      <SignIn></SignIn>
+    </div>
+  );
 }
 
 export default App;
