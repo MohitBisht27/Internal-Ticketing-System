@@ -1,4 +1,5 @@
 import CreateTicket from "./pages/CreateTicket";
+import TicketList from "./pages/GetTicket";
 import Register from "./pages/Register";
 import SignIn from "./pages/Signin";
 function App() {
@@ -6,7 +7,8 @@ function App() {
     <div>
       {/* <Register></Register> */}
       <SignIn></SignIn>
-      <CreateTicket></CreateTicket>
+      {/* <CreateTicket></CreateTicket> */}
+      <TicketList></TicketList>
     </div>
   );
 }
