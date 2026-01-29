@@ -5,6 +5,7 @@ import { Ticket } from "../model/ticket.model.js";
 import { User } from "../model/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { calculateDeadline } from "../utils/sla.js";
+import mongoose from "mongoose";
 const createTicket = asyncHandler(async (req, res) => {
   const { title, description, priority, category, tags } = req.body;
   if (!title || !description || !category) {
@@ -67,42 +68,110 @@ const getTickets = asyncHandler(async (req, res) => {
     priority,
     category,
     isOverdue,
+    search,
+    sortBy = "createdAt",
+    sortOrder = "desc",
     page = 1,
     limit = 10,
   } = req.query;
 
   page = Math.max(1, Number(page));
   limit = Math.min(50, Math.max(1, Number(limit)));
+  const skip = (page - 1) * limit;
 
-  const query = {};
+  // Build match conditions
+  const matchStage = {};
 
+  // Role-based access control
   if (req.user.role === "employee") {
-    query.createdBy = req.user._id;
+    matchStage.createdBy = req.user._id;
   }
 
   if (req.user.role === "agent") {
-    query.assignedTo = req.user._id;
+    // Agents can see assigned tickets OR unassigned tickets in their category
+    matchStage.$or = [
+      { assignedTo: req.user._id },
+      { assignedTo: null, status: "open" },
+    ];
   }
 
-  if (status) query.status = status;
-  if (priority) query.priority = priority;
-  if (category) query.category = category;
+  // Filters
+  if (status) matchStage.status = status;
+  if (priority) matchStage.priority = priority;
+  if (category) matchStage.category = category;
+  if (isOverdue === "true") matchStage.isOverdue = true;
+  if (isOverdue === "false") matchStage.isOverdue = false;
 
-  if (isOverdue === "true") query.isOverdue = true;
-  if (isOverdue === "false") query.isOverdue = false;
+  // Build sort object
+  const sortStage = {
+    [sortBy]: sortOrder === "asc" ? 1 : -1,
+  };
 
-  const skip = (page - 1) * limit;
+  const pipeline = [
+    // Match stage - filter documents
+    { $match: matchStage },
 
-  const [tickets, total] = await Promise.all([
-    Ticket.find(query)
-      .populate("createdBy", "fullName email")
-      .populate("assignedTo", "fullName email")
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
+    // Lookup createdBy user
+    {
+      $lookup: {
+        from: "users",
+        localField: "createdBy",
+        foreignField: "_id",
+        as: "createdBy",
+        pipeline: [{ $project: { fullName: 1, email: 1 } }],
+      },
+    },
+    { $unwind: { path: "$createdBy", preserveNullAndEmptyArrays: true } },
 
-    Ticket.countDocuments(query),
-  ]);
+    // Lookup assignedTo user
+    {
+      $lookup: {
+        from: "users",
+        localField: "assignedTo",
+        foreignField: "_id",
+        as: "assignedTo",
+        pipeline: [{ $project: { fullName: 1, email: 1 } }],
+      },
+    },
+    { $unwind: { path: "$assignedTo", preserveNullAndEmptyArrays: true } },
+
+    // Optional: Search on populated fields
+    ...(search
+      ? [
+          {
+            $match: {
+              $or: [
+                { title: { $regex: search, $options: "i" } },
+                { description: { $regex: search, $options: "i" } },
+                { ticketId: { $regex: search, $options: "i" } },
+                { "createdBy.fullName": { $regex: search, $options: "i" } },
+                { "createdBy.email": { $regex: search, $options: "i" } },
+              ],
+            },
+          },
+        ]
+      : []),
+
+    // Facet for pagination + count in single query
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        tickets: [{ $sort: sortStage }, { $skip: skip }, { $limit: limit }],
+      },
+    },
+
+    // Reshape output
+    {
+      $project: {
+        tickets: 1,
+        total: { $ifNull: [{ $arrayElemAt: ["$metadata.total", 0] }, 0] },
+      },
+    },
+  ];
+
+  const [result] = await Ticket.aggregate(pipeline);
+
+  const { tickets, total } = result;
 
   return res.status(200).json(
     new ApiResponse(
@@ -112,8 +181,10 @@ const getTickets = asyncHandler(async (req, res) => {
         pagination: {
           total,
           page,
-          pages: Math.ceil(total / limit),
+          pages: Math.ceil(total / limit) || 1,
           limit,
+          hasNextPage: page * limit < total,
+          hasPrevPage: page > 1,
         },
       },
       "Tickets fetched successfully",
@@ -123,20 +194,88 @@ const getTickets = asyncHandler(async (req, res) => {
 
 const getTicketById = asyncHandler(async (req, res) => {
   const { ticketId } = req.params;
-  const ticket = await Ticket.findOne({
-    $or: [{ _id: ticketId }, { ticketId: ticketId }],
-  })
-    .populate("createdBy", "fullName email")
-    .populate("assignedTo", "fullName email");
+
+  // Validate ticketId format
+  const isObjectId = mongoose.Types.ObjectId.isValid(ticketId);
+
+  const matchCondition = isObjectId
+    ? { $or: [{ _id: new mongoose.Types.ObjectId(ticketId) }, { ticketId }] }
+    : { ticketId };
+
+  const pipeline = [
+    { $match: matchCondition },
+
+    // Lookup createdBy
+    {
+      $lookup: {
+        from: "users",
+        localField: "createdBy",
+        foreignField: "_id",
+        as: "createdBy",
+        pipeline: [{ $project: { fullName: 1, email: 1, avatar: 1 } }],
+      },
+    },
+    { $unwind: { path: "$createdBy", preserveNullAndEmptyArrays: true } },
+
+    // Lookup assignedTo
+    {
+      $lookup: {
+        from: "users",
+        localField: "assignedTo",
+        foreignField: "_id",
+        as: "assignedTo",
+        pipeline: [{ $project: { fullName: 1, email: 1, avatar: 1 } }],
+      },
+    },
+    { $unwind: { path: "$assignedTo", preserveNullAndEmptyArrays: true } },
+
+    // Lookup comments with nested user lookup
+    {
+      $lookup: {
+        from: "comments",
+        localField: "_id",
+        foreignField: "ticket",
+        as: "comments",
+        pipeline: [
+          { $sort: { createdAt: -1 } },
+          { $limit: 20 },
+          {
+            $lookup: {
+              from: "users",
+              localField: "author",
+              foreignField: "_id",
+              as: "author",
+              pipeline: [{ $project: { fullName: 1, email: 1, avatar: 1 } }],
+            },
+          },
+          { $unwind: { path: "$author", preserveNullAndEmptyArrays: true } },
+        ],
+      },
+    },
+
+    // Add computed fields
+    {
+      $addFields: {
+        commentCount: { $size: "$comments" },
+        isOwnTicket: { $eq: ["$createdBy._id", req.user._id] },
+        canEdit: {
+          $or: [
+            { $eq: ["$createdBy._id", req.user._id] },
+            { $in: [req.user.role, ["admin", "agent"]] },
+          ],
+        },
+      },
+    },
+  ];
+
+  const [ticket] = await Ticket.aggregate(pipeline);
 
   if (!ticket) {
     throw new ApiError(404, "Ticket not found");
   }
 
-  if (
-    req.user.role === "employee" &&
-    ticket.createdBy._id.toString() !== req.user._id.toString()
-  ) {
+  // Access control
+  if (req.user.role === "employee" && !ticket.isOwnTicket) {
     throw new ApiError(403, "You can only access your own tickets");
   }
 
@@ -144,7 +283,6 @@ const getTicketById = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, ticket, "Ticket fetched successfully"));
 });
-
 const updateTicketStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const { ticketId } = req.params;
