@@ -18,9 +18,20 @@ export const ticketApi = createApi({
     }),
 
     getTickets: builder.query({
-      query: () => ({
+      query: (params = {}) => ({
         url: "/tickets",
         method: "GET",
+        params: {
+          page: params.page || 1,
+          limit: params.limit || 10,
+          search: params.search,
+          status: params.status,
+          priority: params.priority,
+          category: params.category,
+          isOverdue: params.isOverdue,
+          sortBy: params.sortBy,
+          sortOrder: params.sortOrder,
+        },
       }),
       providesTags: ["Ticket"],
     }),
@@ -76,6 +87,22 @@ export const ticketApi = createApi({
       }),
       providesTags: ["Ticket"],
     }),
+    updateOverdueTickets: builder.mutation({
+      query: () => ({
+        url: "tickets/update-overdue",
+        method: "PATCH",
+      }),
+      invalidatesTags: (result) =>
+        result ? [{ type: "Ticket", id: "LIST" }] : [{ type: "Ticket" }],
+    }),
+    getAgentPerformance: builder.query({
+      query: () => ({
+        url: "/tickets/performance",
+        method: "GET",
+      }),
+      providesTags: (result) =>
+        result ? [{ type: "Ticket", id: "PERFORMANCE" }] : [{ type: "Ticket" }],
+    }),
   }),
 });
 
@@ -86,4 +113,5 @@ export const {
   useUpdateTicketStatusMutation,
   useAssignTicketMutation,
   useGetTicketStatsQuery,
+  useUpdateOverdueTicketsMutation,
 } = ticketApi;
