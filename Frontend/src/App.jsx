@@ -1,20 +1,3 @@
-// import CreateTicket from "./pages/CreateTicket";
-// import TicketList from "./pages/GetTicket";
-// import Register from "./pages/Register";
-// import SignIn from "./pages/Signin";
-// function App() {
-//   return (
-//     <div>
-//       {/* <Register></Register> */}
-//       <SignIn></SignIn>
-//       {/* <CreateTicket></CreateTicket> */}
-//       <TicketList></TicketList>
-//     </div>
-//   );
-// }
-
-// export default App;
-// src/App.jsx
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -27,7 +10,6 @@ import TicketDetail from "./pages/TicketDetail";
 import AllTickets from "./pages/AllTickets";
 import AgentPerformance from "./pages/AgentPerformance";
 import AssignTickets from "./pages/AssignTicket";
-// import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -51,8 +33,6 @@ function App() {
           <Route path="/admin/performance" element={<AgentPerformance />} />
         </Route>
       </Route>
-
-      {/* <Route path="*" element={<NotFound />} /> */}
     </Routes>
   );
 }
