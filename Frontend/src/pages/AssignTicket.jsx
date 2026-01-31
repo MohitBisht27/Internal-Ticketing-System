@@ -21,7 +21,7 @@ import {
 
 const AssignTickets = () => {
   // --- Constants ---
-  const MAX_AGENT_LOAD = 5; // Must match backend logic
+  const MAX_AGENT_LOAD = 5;
 
   // --- State ---
   const [filters, setFilters] = useState({
@@ -38,12 +38,19 @@ const AssignTickets = () => {
   const [toast, setToast] = useState({ message: "", type: "" });
 
   // --- API Hooks ---
-  const { data: ticketsData, isLoading: ticketsLoading } =
-    useGetAllTicketsQuery(filters);
+  // ✅ FIX 1: Extract 'refetch' from ticket query
+  const {
+    data: ticketsData,
+    isLoading: ticketsLoading,
+    refetch: refetchTickets,
+  } = useGetAllTicketsQuery(filters);
 
-  // The 'agents' array now includes { activeTicketsCount } from your updated backend
-  const { data: agents = [], isLoading: agentsLoading } =
-    useGetAllAgentsQuery();
+  // ✅ FIX 2: Extract 'refetch' from agents query
+  const {
+    data: agents = [],
+    isLoading: agentsLoading,
+    refetch: refetchAgents,
+  } = useGetAllAgentsQuery();
 
   const [assignTicket, { isLoading: isAssigning }] = useAssignTicketMutation();
 
@@ -55,7 +62,6 @@ const AssignTickets = () => {
     pages: 1,
   };
 
-  // Filter locally for unassigned tickets
   const unassignedTickets = tickets.filter((ticket) => !ticket.assignedTo);
 
   // --- Effects ---
@@ -90,10 +96,15 @@ const AssignTickets = () => {
       setProcessingTicketId(ticketId);
       await assignTicket({ ticketId, agentId }).unwrap();
 
+      // ✅ FIX 3: Manually refresh data after assignment
+      await Promise.all([
+        refetchTickets(), // Refreshes the ticket list
+        refetchAgents(), // Refreshes the agent workload counts
+      ]);
+
       setToast({ message: "Ticket assigned successfully!", type: "success" });
       setProcessingTicketId(null);
     } catch (err) {
-      // Handles the "Agent is overloaded" error from backend
       setToast({
         message: err?.data?.message || "Failed to assign ticket",
         type: "error",
@@ -106,13 +117,14 @@ const AssignTickets = () => {
     if (!selectedAgent || selectedTickets.length === 0) return;
 
     try {
-      // Using Promise.allSettled would be better for partial failures,
-      // but for simplicity we assume standard flow or catch block
       const promises = selectedTickets.map((ticketId) =>
         assignTicket({ ticketId, agentId: selectedAgent }).unwrap(),
       );
 
       await Promise.all(promises);
+
+      // ✅ FIX 4: Refresh data after bulk assignment
+      await Promise.all([refetchTickets(), refetchAgents()]);
 
       setToast({
         message: `${selectedTickets.length} tickets assigned successfully!`,
@@ -122,6 +134,10 @@ const AssignTickets = () => {
       setSelectedAgent("");
       setShowBulkAssignModal(false);
     } catch (err) {
+      // Even if some fail, we should refresh to show the current state
+      refetchTickets();
+      refetchAgents();
+
       setToast({
         message:
           err?.data?.message || "Assignment failed. Check agent workload.",
@@ -133,10 +149,10 @@ const AssignTickets = () => {
   // --- Helper: Get Load Color ---
   const getLoadColor = (count) => {
     if (count >= MAX_AGENT_LOAD)
-      return "bg-red-100 text-red-700 ring-red-600/20"; // Full
+      return "bg-red-100 text-red-700 ring-red-600/20";
     if (count >= MAX_AGENT_LOAD - 2)
-      return "bg-yellow-100 text-yellow-700 ring-yellow-600/20"; // Busy
-    return "bg-green-100 text-green-700 ring-green-600/20"; // Free
+      return "bg-yellow-100 text-yellow-700 ring-yellow-600/20";
+    return "bg-green-100 text-green-700 ring-green-600/20";
   };
 
   const getPriorityColor = (priority) => {
