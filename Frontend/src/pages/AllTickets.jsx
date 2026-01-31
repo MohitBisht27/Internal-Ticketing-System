@@ -1,4 +1,3 @@
-// src/pages/AllTickets.jsx
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -7,15 +6,14 @@ import {
 } from "../features/ticketSlice/ticketApi";
 import { useGetAllAgentsQuery } from "../features/authSlice/authApiSlice";
 import {
-  Search,
   Filter,
   ChevronLeft,
   ChevronRight,
   Loader2,
   Ticket,
   AlertTriangle,
-  UserPlus,
-  X,
+  CheckCircle,
+  UserX,
 } from "lucide-react";
 
 const AllTickets = () => {
@@ -34,7 +32,8 @@ const AllTickets = () => {
   });
   const [selectedAgent, setSelectedAgent] = useState("");
 
-  const { data, isLoading } = useGetAllTicketsQuery(filters);
+  // ✅ Add refetch function
+  const { data, isLoading, refetch } = useGetAllTicketsQuery(filters);
   const { data: agentsData } = useGetAllAgentsQuery();
   const [assignTicket, { isLoading: isAssigning }] = useAssignTicketMutation();
 
@@ -46,12 +45,17 @@ const AllTickets = () => {
     setFilters({ ...filters, [key]: value, page: 1 });
   };
 
+  // ✅ Fixed: Refetch after successful assignment
   const handleAssign = async () => {
     try {
       await assignTicket({
         ticketId: assignModal.ticketId,
         agentId: selectedAgent,
       }).unwrap();
+
+      // ✅ Refetch tickets to update the UI
+      await refetch();
+
       setAssignModal({ show: false, ticketId: null });
       setSelectedAgent("");
     } catch (err) {
@@ -72,14 +76,6 @@ const AllTickets = () => {
     medium: "bg-yellow-100 text-yellow-800",
     high: "bg-orange-100 text-orange-800",
     critical: "bg-red-100 text-red-800",
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
   };
 
   return (
@@ -194,7 +190,7 @@ const AllTickets = () => {
                     Assigned To
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Actions
+                    Assignment Status
                   </th>
                 </tr>
               </thead>
@@ -236,19 +232,21 @@ const AllTickets = () => {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {ticket.assignedTo?.fullName || (
-                        <span className="text-gray-400">Unassigned</span>
+                        <span className="text-gray-400 italic">—</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() =>
-                          setAssignModal({ show: true, ticketId: ticket._id })
-                        }
-                        className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        Assign
-                      </button>
+                      {ticket.assignedTo ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          Assigned
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                          <UserX className="w-3.5 h-3.5" />
+                          Not Assigned
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

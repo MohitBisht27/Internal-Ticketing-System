@@ -68,7 +68,7 @@ const Layout = () => {
       name: "My Tickets",
       href: "/tickets",
       icon: Ticket,
-      roles: ["employee", "agent", "admin"],
+      roles: ["employee", "agent"],
     },
     {
       name: "Create Ticket",

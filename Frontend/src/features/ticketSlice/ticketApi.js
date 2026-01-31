@@ -6,17 +6,20 @@ export const ticketApi = createApi({
     baseUrl: "http://localhost:8000/api/v1",
     credentials: "include",
   }),
-  tagTypes: ["Ticket"],
+  tagTypes: ["Ticket", "Tickets"],
   endpoints: (builder) => ({
+    // Create Ticket
     createTicket: builder.mutation({
       query: (formData) => ({
         url: "/tickets",
         method: "POST",
         body: formData,
       }),
-      invalidatesTags: ["Ticket"],
+      // ✅ Invalidate both Ticket and Tickets lists
+      invalidatesTags: ["Ticket", "Tickets"],
     }),
 
+    // Get User's Tickets
     getTickets: builder.query({
       query: (params = {}) => ({
         url: "/tickets",
@@ -33,28 +36,47 @@ export const ticketApi = createApi({
           sortOrder: params.sortOrder,
         },
       }),
-      providesTags: ["Ticket"],
+      providesTags: (result) =>
+        result?.data?.tickets
+          ? [
+              ...result.data.tickets.map(({ _id }) => ({
+                type: "Ticket",
+                id: _id,
+              })),
+              { type: "Ticket", id: "LIST" },
+            ]
+          : [{ type: "Ticket", id: "LIST" }],
     }),
+
+    // Get Single Ticket by ID
     getTicketById: builder.query({
       query: (ticketId) => ({
         url: `/tickets/${ticketId}`,
         method: "GET",
       }),
-      providesTags: (result, error, { ticketId }) => [
+      // ✅ Fixed: ticketId comes directly, not as object
+      providesTags: (result, error, ticketId) => [
         { type: "Ticket", id: ticketId },
       ],
     }),
+
+    // Update Ticket Status
     updateTicketStatus: builder.mutation({
       query: ({ ticketId, status }) => ({
         url: `/tickets/${ticketId}`,
         method: "PATCH",
         body: { status },
       }),
-
+      // ✅ Invalidate both singular ticket and all lists
       invalidatesTags: (result, error, { ticketId }) => [
         { type: "Ticket", id: ticketId },
+        { type: "Ticket", id: "LIST" },
+        { type: "Tickets", id: ticketId },
+        { type: "Tickets", id: "LIST" },
       ],
     }),
+
+    // ✅ FIXED: Assign Ticket - Now invalidates both "Ticket" and "Tickets"
     assignTicket: builder.mutation({
       query: ({ ticketId, agentId }) => ({
         url: `/tickets/${ticketId}/assign`,
@@ -63,15 +85,22 @@ export const ticketApi = createApi({
       }),
       invalidatesTags: (result, error, { ticketId }) => [
         { type: "Ticket", id: ticketId },
+        { type: "Ticket", id: "LIST" },
+        { type: "Tickets", id: ticketId },
+        { type: "Tickets", id: "LIST" },
       ],
     }),
+
+    // Get Ticket Stats
     getTicketStats: builder.query({
       query: () => ({
         url: "/tickets/stats",
         method: "GET",
       }),
-      providesTags: ["Ticket"],
+      providesTags: [{ type: "Ticket", id: "STATS" }],
     }),
+
+    // Get All Tickets (Admin)
     getAllTickets: builder.query({
       query: (params = {}) => ({
         url: "/tickets/admin/all",
@@ -85,23 +114,35 @@ export const ticketApi = createApi({
           limit: params.limit || 10,
         },
       }),
-      providesTags: ["Ticket"],
+      providesTags: (result) =>
+        result?.data?.tickets
+          ? [
+              ...result.data.tickets.map(({ _id }) => ({
+                type: "Tickets",
+                id: _id,
+              })),
+              { type: "Tickets", id: "LIST" },
+            ]
+          : [{ type: "Tickets", id: "LIST" }],
     }),
+
+    // Update Overdue Tickets
     updateOverdueTickets: builder.mutation({
       query: () => ({
-        url: "tickets/update-overdue",
+        url: "/tickets/update-overdue",
         method: "PATCH",
       }),
-      invalidatesTags: (result) =>
-        result ? [{ type: "Ticket", id: "LIST" }] : [{ type: "Ticket" }],
+      // ✅ Invalidate all ticket lists
+      invalidatesTags: ["Ticket", "Tickets"],
     }),
+
+    // Get Agent Performance
     getAgentPerformance: builder.query({
       query: () => ({
         url: "/tickets/performance",
         method: "GET",
       }),
-      providesTags: (result) =>
-        result ? [{ type: "Ticket", id: "PERFORMANCE" }] : [{ type: "Ticket" }],
+      providesTags: [{ type: "Ticket", id: "PERFORMANCE" }],
     }),
   }),
 });
