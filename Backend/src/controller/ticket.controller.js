@@ -339,20 +339,23 @@ const assignTicket = asyncHandler(async (req, res) => {
   const { agentId } = req.body;
   const { ticketId } = req.params;
 
+  // CONFIGURATION: Maximum active tickets allowed per agent
+  const MAX_TICKETS_PER_AGENT = 5;
+
   if (!agentId) {
     throw new ApiError(400, "Agent ID is required");
   }
 
+  // 1. Validate Admin (Optional if middleware handles it, but safe to keep)
   if (req.user.role !== "admin") {
     throw new ApiError(403, "Only admins can assign tickets");
   }
 
+  // 2. Validate Agent
   const agent = await User.findById(agentId);
-
   if (!agent) {
     throw new ApiError(404, "Agent not found");
   }
-
   if (agent.role !== "agent") {
     throw new ApiError(
       400,
@@ -360,14 +363,29 @@ const assignTicket = asyncHandler(async (req, res) => {
     );
   }
 
-  const ticket = await Ticket.findById(ticketId);
+  // 3. WORKLOAD CHECK: Enforce the Limit
+  const currentWorkload = await Ticket.countDocuments({
+    assignedTo: agentId,
+    status: { $in: ["open", "in-progress"] }, // Count only active tickets
+  });
 
+  if (currentWorkload >= MAX_TICKETS_PER_AGENT) {
+    throw new ApiError(
+      400,
+      `Agent ${agent.fullName} is overloaded (${currentWorkload} active tickets). Max allowed is ${MAX_TICKETS_PER_AGENT}.`,
+    );
+  }
+
+  // 4. Validate Ticket
+  const ticket = await Ticket.findById(ticketId);
   if (!ticket) {
     throw new ApiError(404, "Ticket not found");
   }
 
+  // 5. Update Ticket
   ticket.assignedTo = agentId;
 
+  // Auto-change status workflow
   if (ticket.status === "open") {
     ticket.status = "in-progress";
   }

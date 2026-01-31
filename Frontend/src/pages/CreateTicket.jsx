@@ -1,11 +1,23 @@
-import React, { useState } from "react";
-import { Upload, X, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+// src/pages/CreateTicket.jsx
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCreateTicketMutation } from "../features/ticketSlice/ticketApi";
+import {
+  Ticket,
+  FileText,
+  Tag,
+  AlertCircle,
+  Upload,
+  X,
+  Loader2,
+  CheckCircle,
+  ArrowLeft,
+} from "lucide-react";
 
 const CreateTicket = () => {
-  const CATEGORIES = ["Software", "Hardware", "Network", "Access", "Other"];
-  const PRIORITIES = ["low", "medium", "high", "critical"];
-  const [createTicket] = useCreateTicketMutation();
+  const navigate = useNavigate();
+  const [createTicket, { isLoading }] = useCreateTicketMutation();
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -13,259 +25,282 @@ const CreateTicket = () => {
     priority: "medium",
     tags: "",
   });
+  const [attachments, setAttachments] = useState([]);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  const [files, setFiles] = useState([]);
-  const [status, setStatus] = useState({
-    loading: false,
-    error: null,
-    success: null,
-  });
+  const categories = ["Software", "Hardware", "Network", "Access", "Other"];
+  const priorities = [
+    { value: "low", label: "Low", color: "text-green-600" },
+    { value: "medium", label: "Medium", color: "text-yellow-600" },
+    { value: "high", label: "High", color: "text-orange-600" },
+    { value: "critical", label: "Critical", color: "text-red-600" },
+  ];
 
-  // Handle Text Inputs
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError("");
   };
 
-  // Handle File Selection
   const handleFileChange = (e) => {
-    if (e.target.files) {
-      setFiles(Array.from(e.target.files));
-    }
+    const files = Array.from(e.target.files);
+    setAttachments((prev) => [...prev, ...files]);
   };
 
-  // Remove a selected file from the list
-  const removeFile = (index) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeAttachment = (index) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus({ loading: true, error: null, success: null });
+    setError("");
+    setSuccess("");
 
     if (!formData.title || !formData.description || !formData.category) {
-      setStatus({
-        loading: false,
-        error: "Title, description, and category are required.",
-        success: null,
-      });
+      setError("Please fill in all required fields");
       return;
     }
 
-    const data = new FormData();
-    data.append("title", formData.title);
-    data.append("description", formData.description);
-    data.append("category", formData.category);
-    data.append("priority", formData.priority);
-
-    if (formData.tags) {
-      formData.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .forEach((tag) => data.append("tags[]", tag));
-    }
-
-    files.forEach((file) => {
-      data.append("attachments", file);
-    });
-
     try {
-      await createTicket(data).unwrap();
+      const submitData = new FormData();
+      submitData.append("title", formData.title);
+      submitData.append("description", formData.description);
+      submitData.append("category", formData.category);
+      submitData.append("priority", formData.priority);
 
-      setStatus({
-        loading: false,
-        error: null,
-        success: "Ticket raised successfully!",
+      if (formData.tags) {
+        const tagsArray = formData.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+        tagsArray.forEach((tag) => submitData.append("tags[]", tag));
+      }
+
+      attachments.forEach((file) => {
+        submitData.append("attachments", file);
       });
 
-      // reset form
-      setFormData({
-        title: "",
-        description: "",
-        category: "",
-        priority: "medium",
-        tags: "",
-      });
-      setFiles([]);
+      await createTicket(submitData).unwrap();
+      setSuccess("Ticket created successfully!");
+      setTimeout(() => navigate("/tickets"), 1500);
     } catch (err) {
-      setStatus({
-        loading: false,
-        error: err?.data?.message || "Failed to create ticket",
-        success: null,
-      });
+      setError(
+        err.data?.message || "Failed to create ticket. Please try again.",
+      );
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white shadow-lg rounded-xl border border-gray-100 mt-10">
+    <div className="max-w-3xl mx-auto">
+      {/* Header */}
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Raise New Ticket</h2>
-        <p className="text-gray-500 text-sm">
-          Please provide detailed information about your issue.
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+        <h1 className="text-2xl font-bold text-gray-900">Create New Ticket</h1>
+        <p className="text-gray-600 mt-1">
+          Fill out the form below to submit a support ticket
         </p>
       </div>
 
-      {status.error && (
-        <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-lg flex items-center gap-2">
-          <AlertCircle size={20} />
-          <span>{status.error}</span>
-        </div>
-      )}
-
-      {status.success && (
-        <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-lg flex items-center gap-2">
-          <CheckCircle size={20} />
-          <span>{status.success}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Title */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Title <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            placeholder="e.g., VPN Connection Failed"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-          />
-        </div>
-
-        {/* Category & Priority Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="category"
-              value={formData.category}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
-            >
-              <option value="" disabled>
-                Select Category
-              </option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        {/* Alerts */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-700">{error}</p>
           </div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Priority
-            </label>
-            <select
-              name="priority"
-              value={formData.priority}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white capitalize"
-            >
-              {PRIORITIES.map((prio) => (
-                <option key={prio} value={prio}>
-                  {prio}
-                </option>
-              ))}
-            </select>
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+            <p className="text-sm text-green-700">{success}</p>
           </div>
-        </div>
+        )}
 
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description <span className="text-red-500">*</span>
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            rows="4"
-            placeholder="Describe the issue in detail..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-          />
-        </div>
-
-        {/* Tags */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tags (Comma separated)
-          </label>
-          <input
-            type="text"
-            name="tags"
-            value={formData.tags}
-            onChange={handleChange}
-            placeholder="e.g., vpn, network, urgent"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-          />
-        </div>
-
-        {/* File Upload */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Attachments
-          </label>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition cursor-pointer relative">
-            <input
-              type="file"
-              multiple
-              onChange={handleFileChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            />
-            <div className="flex flex-col items-center justify-center text-gray-500">
-              <Upload className="mb-2" size={24} />
-              <p className="text-sm">Click to upload or drag and drop</p>
-              <p className="text-xs text-gray-400 mt-1">Images, PDF, or Logs</p>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Title */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Title <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <Ticket className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="Brief description of the issue"
+              />
             </div>
           </div>
 
-          {/* File Preview List */}
-          {files.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {files.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded-md border border-gray-200"
-                >
-                  <span className="text-sm text-gray-700 truncate max-w-xs">
-                    {file.name}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(index)}
-                    className="text-gray-400 hover:text-red-500 transition"
+          {/* Category & Priority */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Category <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                <option value="">Select a category</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Priority
+              </label>
+              <select
+                name="priority"
+                value={formData.priority}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              >
+                {priorities.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <FileText className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={5}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                placeholder="Provide detailed information about your issue..."
+              />
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Tags (comma-separated)
+            </label>
+            <div className="relative">
+              <Tag className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                name="tags"
+                value={formData.tags}
+                onChange={handleChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="e.g., urgent, login-issue, vpn"
+              />
+            </div>
+          </div>
+
+          {/* Attachments */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Attachments
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition-colors">
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                id="file-upload"
+              />
+              <label htmlFor="file-upload" className="cursor-pointer">
+                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">
+                  <span className="text-blue-600 font-medium">
+                    Click to upload
+                  </span>{" "}
+                  or drag and drop
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  PNG, JPG, PDF up to 10MB each
+                </p>
+              </label>
+            </div>
+
+            {/* Attachment Preview */}
+            {attachments.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {attachments.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
-                    <X size={18} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-5 h-5 text-gray-400" />
+                      <span className="text-sm text-gray-700 truncate max-w-xs">
+                        {file.name}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({(file.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(index)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={status.loading}
-          className={`w-full py-3 px-4 rounded-lg text-white font-medium flex items-center justify-center gap-2 transition
-            ${status.loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg"}`}
-        >
-          {status.loading ? (
-            <>
-              <Loader2 className="animate-spin" size={20} /> Submitting...
-            </>
-          ) : (
-            "Submit Ticket"
-          )}
-        </button>
-      </form>
+          {/* Submit Button */}
+          <div className="flex gap-4 pt-4">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create Ticket"
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

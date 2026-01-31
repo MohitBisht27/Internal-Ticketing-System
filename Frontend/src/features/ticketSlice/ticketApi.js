@@ -114,4 +114,6 @@ export const {
   useAssignTicketMutation,
   useGetTicketStatsQuery,
   useUpdateOverdueTicketsMutation,
+  useGetAgentPerformanceQuery,
+  useGetAllTicketsQuery,
 } = ticketApi;

@@ -244,11 +244,59 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, user, "Account details updated successfully"));
 });
+
 const getAllAgents = asyncHandler(async (req, res) => {
-  const agents = await User.find({
-    role: { $in: ["agent", "admin"] },
-    isActive: true,
-  }).select("fullName username department avatar");
+  const agents = await User.aggregate([
+    // 1. Filter: Only Agents
+    {
+      $match: {
+        role: "agent",
+        isActive: true,
+      },
+    },
+
+    // 2. Lookup: Find active tickets for this agent
+    {
+      $lookup: {
+        from: "tickets", // Ensure this matches your MongoDB collection name (usually lowercase plural)
+        localField: "_id",
+        foreignField: "assignedTo",
+        pipeline: [
+          // We only count tickets that are NOT resolved or closed
+          { $match: { status: { $in: ["open", "in-progress"] } } },
+        ],
+        as: "activeWorkload",
+      },
+    },
+
+    // 3. Add Field: Convert the array of tickets into a count number
+    {
+      $addFields: {
+        activeTicketsCount: { $size: "$activeWorkload" },
+      },
+    },
+
+    // 4. Project: Select fields (Include the new activeTicketsCount)
+    {
+      $project: {
+        _id: 1,
+        fullName: 1,
+        email: 1,
+        username: 1,
+        department: 1,
+        avatar: 1,
+        activeTicketsCount: 1, // <--- Send this to frontend
+      },
+    },
+
+    // 5. Sort: Show agents with LEAST tickets first, then Alphabetical
+    {
+      $sort: {
+        activeTicketsCount: 1, // 0 tickets first, then 1, etc.
+        fullName: 1,
+      },
+    },
+  ]);
 
   return res
     .status(200)
