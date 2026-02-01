@@ -1,17 +1,11 @@
-// src/pages/TicketDetail.jsx
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-// Removed 'useSelector' as it is not needed for RTK Query hooks
 import {
   useGetTicketByIdQuery,
   useUpdateTicketStatusMutation,
-  useAssignTicketMutation,
 } from "../features/ticketSlice/ticketApi";
 
-import {
-  useGetCurrentUserQuery,
-  useGetAllAgentsQuery,
-} from "../features/authSlice/authApiSlice";
+import { useGetCurrentUserQuery } from "../features/authSlice/authApiSlice";
 import {
   ArrowLeft,
   Clock,
@@ -24,38 +18,27 @@ import {
   Calendar,
   Edit3,
   UserPlus,
+  CheckCircle,
+  UserX,
 } from "lucide-react";
 
 const TicketDetail = () => {
   const { ticketId } = useParams();
   const navigate = useNavigate();
 
-  // --- FIX START ---
-  // ERROR WAS HERE: const user = useSelector(useGetCurrentUserQuery);
-
-  // CORRECT WAY: Call the hook directly
+  // Get User Data
   const { data: userData } = useGetCurrentUserQuery();
   const user = userData?.data || userData || {};
-  // --- FIX END ---
 
   const { data, isLoading, error } = useGetTicketByIdQuery(ticketId);
 
-  // Use optional chaining for user.role to prevent crash if user isn't loaded yet
-  const { data: agentsData } = useGetAllAgentsQuery(undefined, {
-    skip: user?.role !== "admin",
-  });
-
   const [updateStatus, { isLoading: isUpdating }] =
     useUpdateTicketStatusMutation();
-  const [assignTicket, { isLoading: isAssigning }] = useAssignTicketMutation();
 
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("");
-  const [selectedAgent, setSelectedAgent] = useState("");
 
   const ticket = data?.data;
-  const agents = agentsData?.data || [];
 
   const statusColors = {
     open: "bg-blue-100 text-blue-800 border-blue-200",
@@ -100,16 +83,6 @@ const TicketDetail = () => {
     }
   };
 
-  const handleAssign = async () => {
-    try {
-      await assignTicket({ ticketId, agentId: selectedAgent }).unwrap();
-      setShowAssignModal(false);
-      setSelectedAgent("");
-    } catch (err) {
-      console.error("Failed to assign ticket:", err);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -136,8 +109,8 @@ const TicketDetail = () => {
     );
   }
 
+  // ✅ UPDATED: Both Agents AND Admins can update status
   const canChangeStatus = ["agent", "admin"].includes(user?.role);
-  const canAssign = user?.role === "admin";
   const availableStatuses = validTransitions[ticket.status] || [];
 
   return (
@@ -189,24 +162,29 @@ const TicketDetail = () => {
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:items-end gap-3">
+            {/* ✅ Status Button (Visible to Agents & Admins) */}
             {canChangeStatus && availableStatuses.length > 0 && (
               <button
                 onClick={() => setShowStatusModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm w-full sm:w-auto justify-center"
               >
                 <Edit3 className="w-4 h-4" />
                 Update Status
               </button>
             )}
-            {canAssign && (
-              <button
-                onClick={() => setShowAssignModal(true)}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <UserPlus className="w-4 h-4" />
-                Assign
-              </button>
+
+            {/* Read-Only Assigned Status */}
+            {ticket.assignedTo ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm font-medium whitespace-nowrap">
+                <CheckCircle className="w-4 h-4" />
+                Assigned: {ticket.assignedTo.fullName}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg border border-gray-200 text-sm font-medium whitespace-nowrap">
+                <UserX className="w-4 h-4" />
+                Not Assigned
+              </div>
             )}
           </div>
         </div>
@@ -392,44 +370,6 @@ const TicketDetail = () => {
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
                 {isUpdating ? "Updating..." : "Update"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Assign Modal */}
-      {showAssignModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Assign Ticket
-            </h3>
-            <select
-              value={selectedAgent}
-              onChange={(e) => setSelectedAgent(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-            >
-              <option value="">Select an agent</option>
-              {agents.map((agent) => (
-                <option key={agent._id} value={agent._id}>
-                  {agent.fullName} ({agent.email})
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowAssignModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAssign}
-                disabled={!selectedAgent || isAssigning}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isAssigning ? "Assigning..." : "Assign"}
               </button>
             </div>
           </div>
