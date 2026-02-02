@@ -149,7 +149,6 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 
   try {
-    // 1. Verify the token (This caused your error because jwt wasn't imported)
     const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET,
@@ -161,38 +160,33 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       throw new ApiError(401, "Invalid refresh token");
     }
 
+    // Check if token matches DB
     if (incomingRefreshToken !== user?.refreshToken) {
       throw new ApiError(401, "Refresh token is expired or used");
     }
 
-    // 2. Generate new tokens
-    const { accessToken, refreshToken: newRefreshToken } =
-      await generateAccessAndRefreshTokens(user._id);
+    const accessToken = user.generateAccessToken();
 
-    // 3. IMPORTANT: Get user data to send back to React
+    const newRefreshToken = incomingRefreshToken;
+
     const userPayload = await User.findById(user._id).select(
       "-password -refreshToken",
     );
 
-    // 4. Set Cookie Options (Make sure secure is FALSE for localhost)
-
-    return (
-      res
-        .status(200)
-        // .cookie("accessToken", accessToken, options)
-        .cookie("refreshToken", newRefreshToken, options)
-        .json(
-          new ApiResponse(
-            200,
-            {
-              accessToken,
-              refreshToken: newRefreshToken,
-              user: userPayload, // <--- Frontend needs this to stay logged in!
-            },
-            "Access token refreshed",
-          ),
-        )
-    );
+    return res
+      .status(200)
+      .cookie("refreshToken", newRefreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          {
+            accessToken,
+            refreshToken: newRefreshToken,
+            user: userPayload,
+          },
+          "Access token refreshed",
+        ),
+      );
   } catch (error) {
     throw new ApiError(401, error?.message || "Invalid refresh token");
   }
