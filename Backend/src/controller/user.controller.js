@@ -4,7 +4,7 @@ import { User } from "../model/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import cloudinary from "cloudinary";
-
+import jwt from "jsonwebtoken";
 const options = {
   httpOnly: true,
   secure: true,
@@ -101,21 +101,23 @@ const loggedInUser = asyncHandler(async (req, res) => {
     "-password -refreshToken",
   );
 
-  return res
-    .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-      new ApiResponse(
-        200,
-        {
-          user: loggedInUser,
-          accessToken,
-          refreshToken,
-        },
-        "User logged In Successfully",
-      ),
-    );
+  return (
+    res
+      .status(200)
+      // .cookie("accessToken", accessToken, options)
+      .cookie("refreshToken", refreshToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          {
+            user: loggedInUser,
+            accessToken,
+            refreshToken,
+          },
+          "User logged In Successfully",
+        ),
+      )
+  );
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
@@ -141,40 +143,60 @@ const logoutUser = asyncHandler(async (req, res) => {
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
     req.cookies.refreshToken || req.body.refreshToken;
+
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized Request");
   }
+
   try {
-    const decodedToken = await jwt.verify(
+    // 1. Verify the token (This caused your error because jwt wasn't imported)
+    const decodedToken = jwt.verify(
       incomingRefreshToken,
       process.env.REFRESH_TOKEN_SECRET,
     );
+
     const user = await User.findById(decodedToken?._id);
+
     if (!user) {
-      throw new ApiError(401, "Unauthorized Request");
+      throw new ApiError(401, "Invalid refresh token");
     }
+
     if (incomingRefreshToken !== user?.refreshToken) {
       throw new ApiError(401, "Refresh token is expired or used");
     }
 
+    // 2. Generate new tokens
     const { accessToken, refreshToken: newRefreshToken } =
       await generateAccessAndRefreshTokens(user._id);
-    return res
-      .status(200)
-      .cookie("accessToken", accessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
-      .json(
-        new ApiResponse(
-          200,
-          { accessToken, refreshToken: newRefreshToken },
-          "Access token refreshed",
-        ),
-      );
+
+    // 3. IMPORTANT: Get user data to send back to React
+    const userPayload = await User.findById(user._id).select(
+      "-password -refreshToken",
+    );
+
+    // 4. Set Cookie Options (Make sure secure is FALSE for localhost)
+
+    return (
+      res
+        .status(200)
+        // .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", newRefreshToken, options)
+        .json(
+          new ApiResponse(
+            200,
+            {
+              accessToken,
+              refreshToken: newRefreshToken,
+              user: userPayload, // <--- Frontend needs this to stay logged in!
+            },
+            "Access token refreshed",
+          ),
+        )
+    );
   } catch (error) {
-    throw new ApiError(401, error?.message, "Invalid accessToken");
+    throw new ApiError(401, error?.message || "Invalid refresh token");
   }
 });
-
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   const user = await User.findById(req.user?._id);

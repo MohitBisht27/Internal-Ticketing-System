@@ -1,25 +1,18 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { authApi } from "../authSlice/authApiSlice";
 
-export const ticketApi = createApi({
-  reducerPath: "ticketApi",
-  baseQuery: fetchBaseQuery({
-    baseUrl: "http://localhost:8000/api/v1",
-    credentials: "include",
-  }),
-  tagTypes: ["Ticket", "Tickets"],
+export const ticketApi = authApi.injectEndpoints({
   endpoints: (builder) => ({
-    // Create Ticket
+    // 1. Create Ticket
     createTicket: builder.mutation({
       query: (formData) => ({
         url: "/tickets",
         method: "POST",
         body: formData,
       }),
-      // ✅ Invalidate both Ticket and Tickets lists
-      invalidatesTags: ["Ticket", "Tickets"],
+      invalidatesTags: ["Ticket", "Tickets", "Stats"],
     }),
 
-    // Get User's Tickets
+    // 2. Get User's Tickets
     getTickets: builder.query({
       query: (params = {}) => ({
         url: "/tickets",
@@ -40,84 +33,6 @@ export const ticketApi = createApi({
         result?.data?.tickets
           ? [
               ...result.data.tickets.map(({ _id }) => ({
-                type: "Ticket",
-                id: _id,
-              })),
-              { type: "Ticket", id: "LIST" },
-            ]
-          : [{ type: "Ticket", id: "LIST" }],
-    }),
-
-    // Get Single Ticket by ID
-    getTicketById: builder.query({
-      query: (ticketId) => ({
-        url: `/tickets/${ticketId}`,
-        method: "GET",
-      }),
-      // ✅ Fixed: ticketId comes directly, not as object
-      providesTags: (result, error, ticketId) => [
-        { type: "Ticket", id: ticketId },
-      ],
-    }),
-
-    // Update Ticket Status
-    updateTicketStatus: builder.mutation({
-      query: ({ ticketId, status }) => ({
-        url: `/tickets/${ticketId}`,
-        method: "PATCH",
-        body: { status },
-      }),
-      // ✅ Invalidate both singular ticket and all lists
-      invalidatesTags: (result, error, { ticketId }) => [
-        { type: "Ticket", id: ticketId },
-        { type: "Ticket", id: "LIST" },
-        { type: "Tickets", id: ticketId },
-        { type: "Tickets", id: "LIST" },
-      ],
-    }),
-
-    // ✅ FIXED: Assign Ticket - Now invalidates both "Ticket" and "Tickets"
-    assignTicket: builder.mutation({
-      query: ({ ticketId, agentId }) => ({
-        url: `/tickets/${ticketId}/assign`,
-        method: "PATCH",
-        body: { agentId },
-      }),
-      invalidatesTags: (result, error, { ticketId }) => [
-        { type: "Ticket", id: ticketId },
-        { type: "Ticket", id: "LIST" },
-        { type: "Tickets", id: ticketId },
-        { type: "Tickets", id: "LIST" },
-      ],
-    }),
-
-    // Get Ticket Stats
-    getTicketStats: builder.query({
-      query: () => ({
-        url: "/tickets/stats",
-        method: "GET",
-      }),
-      providesTags: [{ type: "Ticket", id: "STATS" }],
-    }),
-
-    // Get All Tickets (Admin)
-    getAllTickets: builder.query({
-      query: (params = {}) => ({
-        url: "/tickets/admin/all",
-        method: "GET",
-        params: {
-          status: params.status,
-          priority: params.priority,
-          category: params.category,
-          isOverdue: params.isOverdue,
-          page: params.page || 1,
-          limit: params.limit || 10,
-        },
-      }),
-      providesTags: (result) =>
-        result?.data?.tickets
-          ? [
-              ...result.data.tickets.map(({ _id }) => ({
                 type: "Tickets",
                 id: _id,
               })),
@@ -126,23 +41,81 @@ export const ticketApi = createApi({
           : [{ type: "Tickets", id: "LIST" }],
     }),
 
-    // Update Overdue Tickets
+    // 3. Get Single Ticket
+    getTicketById: builder.query({
+      query: (ticketId) => ({
+        url: `/tickets/${ticketId}`,
+        method: "GET",
+      }),
+      providesTags: (result, error, ticketId) => [
+        { type: "Ticket", id: ticketId },
+      ],
+    }),
+
+    // 4. Update Ticket Status
+    updateTicketStatus: builder.mutation({
+      query: ({ ticketId, status }) => ({
+        url: `/tickets/${ticketId}`,
+        method: "PATCH",
+        body: { status },
+      }),
+      invalidatesTags: (result, error, { ticketId }) => [
+        { type: "Ticket", id: ticketId },
+        { type: "Tickets", id: "LIST" },
+        "Stats", // Update stats on status change
+      ],
+    }),
+
+    // 5. Assign Ticket
+    assignTicket: builder.mutation({
+      query: ({ ticketId, agentId }) => ({
+        url: `/tickets/${ticketId}/assign`,
+        method: "PATCH",
+        body: { agentId },
+      }),
+      invalidatesTags: (result, error, { ticketId }) => [
+        { type: "Ticket", id: ticketId },
+        { type: "Tickets", id: "LIST" },
+        "Stats",
+        "Performance", // Update agent performance
+      ],
+    }),
+
+    // 6. Get Ticket Stats
+    getTicketStats: builder.query({
+      query: () => ({
+        url: "/tickets/stats",
+        method: "GET",
+      }),
+      providesTags: ["Stats"],
+    }),
+
+    // 7. Admin: Get All Tickets
+    getAllTickets: builder.query({
+      query: (params = {}) => ({
+        url: "/tickets/admin/all",
+        method: "GET",
+        params: params,
+      }),
+      providesTags: ["Tickets"],
+    }),
+
+    // 8. Update Overdue
     updateOverdueTickets: builder.mutation({
       query: () => ({
         url: "/tickets/update-overdue",
         method: "PATCH",
       }),
-      // ✅ Invalidate all ticket lists
-      invalidatesTags: ["Ticket", "Tickets"],
+      invalidatesTags: ["Tickets", "Stats"],
     }),
 
-    // Get Agent Performance
+    // 9. Agent Performance
     getAgentPerformance: builder.query({
       query: () => ({
         url: "/tickets/performance",
         method: "GET",
       }),
-      providesTags: [{ type: "Ticket", id: "PERFORMANCE" }],
+      providesTags: ["Performance"],
     }),
   }),
 });
