@@ -4,23 +4,17 @@ import {
   useGetTicketByIdQuery,
   useUpdateTicketStatusMutation,
 } from "../features/ticketSlice/ticketApi";
-
 import { useGetCurrentUserQuery } from "../features/authSlice/authApiSlice";
-import {
-  ArrowLeft,
-  Clock,
-  User,
-  Tag,
-  Paperclip,
-  MessageSquare,
-  AlertTriangle,
-  Loader2,
-  Calendar,
-  Edit3,
-  UserPlus,
-  CheckCircle,
-  UserX,
-} from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
+
+// Components
+import TicketHeader from "../components/ticketDetailUi/TicketHeader";
+import TicketDescription from "../components/ticketDetailUi/TicketDescription";
+import TicketAttachments from "../components/ticketDetailUi/TicketAttachments";
+import TicketComments from "../components/ticketDetailUi/TicketComments";
+import TicketMeta from "../components/ticketDetailUi/TicketMeta";
+import TicketTags from "../components/ticketDetailUi/TicketTags";
+import UpdateStatusModal from "../components/ticketDetailUi/UpdateStatusModal";
 
 const TicketDetail = () => {
   const { ticketId } = useParams();
@@ -31,15 +25,14 @@ const TicketDetail = () => {
   const user = userData?.data || userData || {};
 
   const { data, isLoading, error } = useGetTicketByIdQuery(ticketId);
-
   const [updateStatus, { isLoading: isUpdating }] =
     useUpdateTicketStatusMutation();
 
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("");
 
   const ticket = data?.data;
 
+  // Configuration Constants
   const statusColors = {
     open: "bg-blue-100 text-blue-800 border-blue-200",
     "in-progress": "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -63,6 +56,7 @@ const TicketDetail = () => {
     closed: [],
   };
 
+  // Helper Functions
   const formatDate = (date) => {
     return new Date(date).toLocaleString("en-US", {
       month: "long",
@@ -73,11 +67,10 @@ const TicketDetail = () => {
     });
   };
 
-  const handleStatusUpdate = async () => {
+  const handleStatusUpdate = async (selectedStatus) => {
     try {
       await updateStatus({ ticketId, status: selectedStatus }).unwrap();
       setShowStatusModal(false);
-      setSelectedStatus("");
     } catch (err) {
       console.error("Failed to update status:", err);
     }
@@ -109,7 +102,7 @@ const TicketDetail = () => {
     );
   }
 
-  // ✅ UPDATED: Both Agents AND Admins can update status
+  // Permissions & Transitions
   const canChangeStatus = ["agent", "admin"].includes(user?.role);
   const availableStatuses = validTransitions[ticket.status] || [];
 
@@ -124,257 +117,39 @@ const TicketDetail = () => {
         Back to Tickets
       </button>
 
-      {/* Header Card */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-sm font-medium text-gray-500">
-                {ticket.ticketId}
-              </span>
-              {ticket.isOverdue && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded-full">
-                  <AlertTriangle className="w-3 h-3" />
-                  Overdue
-                </span>
-              )}
-            </div>
-            <h1 className="text-2xl font-bold text-gray-900">{ticket.title}</h1>
-
-            <div className="flex flex-wrap gap-2 mt-4">
-              <span
-                className={`inline-flex items-center px-3 py-1 text-sm font-medium rounded-full border ${
-                  statusColors[ticket.status]
-                }`}
-              >
-                {ticket.status.replace("-", " ")}
-              </span>
-              <span
-                className={`inline-flex items-center px-3 py-1 text-sm font-medium rounded-full border ${
-                  priorityColors[ticket.priority]
-                }`}
-              >
-                {ticket.priority}
-              </span>
-              <span className="inline-flex items-center px-3 py-1 text-sm font-medium rounded-full border bg-gray-100 text-gray-800 border-gray-200">
-                {ticket.category}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:items-end gap-3">
-            {/* ✅ Status Button (Visible to Agents & Admins) */}
-            {canChangeStatus && availableStatuses.length > 0 && (
-              <button
-                onClick={() => setShowStatusModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm w-full sm:w-auto justify-center"
-              >
-                <Edit3 className="w-4 h-4" />
-                Update Status
-              </button>
-            )}
-
-            {/* Read-Only Assigned Status */}
-            {ticket.assignedTo ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm font-medium whitespace-nowrap">
-                <CheckCircle className="w-4 h-4" />
-                Assigned: {ticket.assignedTo.fullName}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg border border-gray-200 text-sm font-medium whitespace-nowrap">
-                <UserX className="w-4 h-4" />
-                Not Assigned
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Header */}
+      <TicketHeader
+        ticket={ticket}
+        statusColors={statusColors}
+        priorityColors={priorityColors}
+        canChangeStatus={canChangeStatus}
+        availableStatuses={availableStatuses}
+        onOpenModal={() => setShowStatusModal(true)}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Description */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Description
-            </h2>
-            <p className="text-gray-700 whitespace-pre-wrap">
-              {ticket.description}
-            </p>
-          </div>
-
-          {/* Attachments */}
-          {ticket.attachments?.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Paperclip className="w-5 h-5" />
-                Attachments ({ticket.attachments.length})
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {ticket.attachments.map((attachment, index) => (
-                  <a
-                    key={index}
-                    href={attachment.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-center"
-                  >
-                    <Paperclip className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <span className="text-sm text-gray-600">
-                      Attachment {index + 1}
-                    </span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Comments */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Comments ({ticket.commentCount || 0})
-            </h2>
-            {ticket.comments?.length > 0 ? (
-              <div className="space-y-4">
-                {ticket.comments.map((comment) => (
-                  <div key={comment._id} className="flex gap-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-xs font-medium">
-                        {comment.author?.fullName?.charAt(0)?.toUpperCase()}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">
-                          {comment.author?.fullName}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {formatDate(comment.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-gray-700 mt-1">{comment.content}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-4">No comments yet</p>
-            )}
-          </div>
+          <TicketDescription description={ticket.description} />
+          <TicketAttachments attachments={ticket.attachments} />
+          <TicketComments comments={ticket.comments} formatDate={formatDate} />
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Details */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Details
-            </h2>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-500">Created by</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {ticket.createdBy?.fullName}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <UserPlus className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-500">Assigned to</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {ticket.assignedTo?.fullName || "Unassigned"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-500">Created</p>
-                  <p className="text-sm font-medium text-gray-900">
-                    {formatDate(ticket.createdAt)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="text-xs text-gray-500">Deadline</p>
-                  <p
-                    className={`text-sm font-medium ${ticket.isOverdue ? "text-red-600" : "text-gray-900"}`}
-                  >
-                    {formatDate(ticket.deadline)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Tags */}
-          {ticket.tags?.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <Tag className="w-5 h-5" />
-                Tags
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {ticket.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-gray-100 text-gray-700 text-sm rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          <TicketMeta ticket={ticket} formatDate={formatDate} />
+          <TicketTags tags={ticket.tags} />
         </div>
       </div>
 
-      {/* Status Update Modal */}
-      {showStatusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Update Status
-            </h3>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-            >
-              <option value="">Select new status</option>
-              {availableStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status.replace("-", " ")}
-                </option>
-              ))}
-            </select>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowStatusModal(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleStatusUpdate}
-                disabled={!selectedStatus || isUpdating}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isUpdating ? "Updating..." : "Update"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      <UpdateStatusModal
+        isOpen={showStatusModal}
+        onClose={() => setShowStatusModal(false)}
+        onUpdate={handleStatusUpdate}
+        availableStatuses={availableStatuses}
+        isUpdating={isUpdating}
+      />
     </div>
   );
 };
