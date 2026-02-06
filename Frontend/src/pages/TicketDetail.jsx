@@ -5,7 +5,15 @@ import {
   useUpdateTicketStatusMutation,
 } from "../features/ticketSlice/ticketApi";
 import { useGetCurrentUserQuery } from "../features/authSlice/authApiSlice";
-import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  AlertTriangle,
+  MessageSquare,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 
 // Components
 import TicketHeader from "../components/ticketDetailUi/TicketHeader";
@@ -29,6 +37,8 @@ const TicketDetail = () => {
     useUpdateTicketStatusMutation();
 
   const [showStatusModal, setShowStatusModal] = useState(false);
+  // New State for toggling comments
+  const [showComments, setShowComments] = useState(true);
 
   const ticket = data?.data;
 
@@ -59,7 +69,7 @@ const TicketDetail = () => {
   // Helper Functions
   const formatDate = (date) => {
     return new Date(date).toLocaleString("en-US", {
-      month: "long",
+      month: "short",
       day: "numeric",
       year: "numeric",
       hour: "numeric",
@@ -78,26 +88,29 @@ const TicketDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
       </div>
     );
   }
 
   if (error || !ticket) {
     return (
-      <div className="text-center py-12">
-        <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900">Ticket not found</h3>
-        <p className="text-gray-500 mt-1">
-          The ticket you're looking for doesn't exist or you don't have access.
-        </p>
-        <button
-          onClick={() => navigate("/tickets")}
-          className="mt-4 text-blue-600 hover:text-blue-700"
-        >
-          Go back to tickets
-        </button>
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-md w-full border border-gray-100">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-900">Ticket not found</h3>
+          <p className="text-gray-500 mt-2 mb-6">
+            The ticket you're looking for doesn't exist or you don't have
+            permission to view it.
+          </p>
+          <button
+            onClick={() => navigate("/tickets")}
+            className="w-full py-2.5 px-4 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
+          >
+            Return to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -107,38 +120,113 @@ const TicketDetail = () => {
   const availableStatuses = validTransitions[ticket.status] || [];
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Tickets
-      </button>
+    <div className="min-h-screen bg-gray-50/50 pb-20">
+      {/* Top Navigation Bar */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group px-3 py-1.5 rounded-lg hover:bg-gray-100"
+          >
+            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+            <span className="font-medium text-sm">Back to Tickets</span>
+          </button>
+        </div>
+      </div>
 
-      {/* Header */}
-      <TicketHeader
-        ticket={ticket}
-        statusColors={statusColors}
-        priorityColors={priorityColors}
-        canChangeStatus={canChangeStatus}
-        availableStatuses={availableStatuses}
-        onOpenModal={() => setShowStatusModal(true)}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          <TicketDescription description={ticket.description} />
-          <TicketAttachments attachments={ticket.attachments} />
-          <TicketComments comments={ticket.comments} formatDate={formatDate} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Ticket Header (Title & Actions) */}
+        <div className="mb-8">
+          <TicketHeader
+            ticket={ticket}
+            statusColors={statusColors}
+            priorityColors={priorityColors}
+            canChangeStatus={canChangeStatus}
+            availableStatuses={availableStatuses}
+            onOpenModal={() => setShowStatusModal(true)}
+          />
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <TicketMeta ticket={ticket} formatDate={formatDate} />
-          <TicketTags tags={ticket.tags} />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* --- LEFT COLUMN (Content & Conversation) --- */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Ticket Context Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-slate-500" />
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Description & Attachments
+                </h2>
+              </div>
+              <div className="p-6">
+                <TicketDescription description={ticket.description} />
+                {ticket.attachments && ticket.attachments.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-gray-100">
+                    <TicketAttachments attachments={ticket.attachments} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Conversation Divider with Toggle Button */}
+            <div className="relative flex items-center py-4">
+              <div className="flex-grow border-t border-gray-200"></div>
+
+              <button
+                onClick={() => setShowComments(!showComments)}
+                className="group flex-shrink-0 mx-4 px-4 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer flex items-center gap-2 text-slate-500 hover:text-blue-600 z-10"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span className="text-sm font-semibold">Activity</span>
+                {showComments ? (
+                  <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                )}
+              </button>
+
+              <div className="flex-grow border-t border-gray-200"></div>
+            </div>
+
+            {/* Comments Section (Collapsible) */}
+            <div
+              className={`transition-all duration-300 ease-in-out ${showComments ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 h-0 overflow-hidden"}`}
+            >
+              <TicketComments ticketId={ticketId} />
+            </div>
+
+            {!showComments && (
+              <div className="text-center">
+                <button
+                  onClick={() => setShowComments(true)}
+                  className="text-sm text-slate-400 hover:text-blue-600 font-medium"
+                >
+                  Show comments to reply...
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* --- RIGHT COLUMN (Sticky Sidebar) --- */}
+          <div className="lg:col-span-4">
+            <div className="sticky top-24 space-y-6">
+              {/* Meta Card */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">
+                  Ticket Info
+                </h3>
+                <TicketMeta ticket={ticket} formatDate={formatDate} />
+              </div>
+
+              {/* Tags Card */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">
+                  Tags
+                </h3>
+                <TicketTags tags={ticket.tags} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

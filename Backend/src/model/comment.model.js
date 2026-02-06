@@ -12,6 +12,7 @@ const commentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Comment",
       default: null,
+      index: true,
     },
 
     author: {
@@ -47,5 +48,7 @@ const commentSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+commentSchema.index({ ticket: 1, createdAt: 1 });
+commentSchema.index({ ticket: 1, isInternalNote: 1, createdAt: 1 });
 
 export const Comment = mongoose.model("Comment", commentSchema);

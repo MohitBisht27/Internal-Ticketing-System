@@ -5,7 +5,6 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
-import { io } from "../app.js";
 
 const MAX_FILES = 2;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -16,6 +15,7 @@ const ALLOWED_TYPES = [
   "application/pdf",
 ];
 
+// Helper: Check access rights
 const checkTicketAccess = async (ticketId, user) => {
   if (!mongoose.isValidObjectId(ticketId)) {
     throw new ApiError(400, "Invalid ticket ID");
@@ -27,7 +27,6 @@ const checkTicketAccess = async (ticketId, user) => {
   }
   if (user.role === "employee") {
     const isOwner = ticket.createdBy.toString() === user._id.toString();
-
     if (!isOwner) {
       throw new ApiError(403, "You don't have access to this ticket");
     }
@@ -36,10 +35,10 @@ const checkTicketAccess = async (ticketId, user) => {
   return ticket;
 };
 
+// Helper: Upload files
 const uploadFiles = async (files) => {
-  if (!files || files.length === 0) {
-    return [];
-  }
+  if (!files || files.length === 0) return [];
+
   if (files.length > MAX_FILES) {
     throw new ApiError(400, `You can only upload ${MAX_FILES} files at once`);
   }
@@ -52,59 +51,33 @@ const uploadFiles = async (files) => {
       );
     }
     if (!ALLOWED_TYPES.includes(file.mimetype)) {
-      throw new ApiError(
-        400,
-        `File type "${file.mimetype}" is not allowed. Use JPG, PNG, GIF, or PDF`,
-      );
+      throw new ApiError(400, `File type "${file.mimetype}" is not allowed.`);
     }
   }
   const uploadPromises = files.map((file) => uploadOnCloudinary(file.path));
   const results = await Promise.all(uploadPromises);
 
-  const attachments = results
+  return results
     .filter((result) => result?.url)
     .map((result) => ({
       url: result.url,
       public_id: result.public_id,
     }));
-
-  return attachments;
 };
 
-const sendSocketEvent = (eventName, ticketId, data) => {
-  try {
-    if (data.isInternalNote) {
-      io.to(`ticket:${ticketId}:staff`).emit(eventName, data);
-    } else {
-      io.to(`ticket:${ticketId}`).emit(eventName, data);
-    }
-  } catch (error) {
-    console.error("Socket error:", error);
-  }
-};
-
-// ==========================================
-// 📝 CREATE COMMENT
-// ==========================================
 export const createComment = asyncHandler(async (req, res) => {
   const { ticketId } = req.params;
   const { content, parentComment, isInternalNote, type = "message" } = req.body;
 
   await checkTicketAccess(ticketId, req.user);
 
-  // Validate content
   if (!content || !content.trim()) {
     throw new ApiError(400, "Comment cannot be empty");
   }
 
-  // If this is a reply to another comment, check parent exists
   if (parentComment) {
     const parent = await Comment.findById(parentComment);
-
-    if (!parent) {
-      throw new ApiError(404, "Parent comment not found");
-    }
-
+    if (!parent) throw new ApiError(404, "Parent comment not found");
     if (parent.ticket.toString() !== ticketId) {
       throw new ApiError(400, "Parent comment is from a different ticket");
     }
@@ -112,7 +85,6 @@ export const createComment = asyncHandler(async (req, res) => {
 
   const attachments = await uploadFiles(req.files);
 
-  // Only admins/agents can create internal notes
   let finalIsInternalNote = false;
   if (req.user.role === "admin" || req.user.role === "agent") {
     finalIsInternalNote = isInternalNote === true || isInternalNote === "true";
@@ -128,18 +100,9 @@ export const createComment = asyncHandler(async (req, res) => {
     type,
   });
 
-  const populatedComment = await Comment.findById(comment._id).populate(
-    "author",
-    "name email role avatar",
-  );
-
-  sendSocketEvent("comment:new", ticketId, populatedComment);
-
   return res
     .status(201)
-    .json(
-      new ApiResponse(201, populatedComment, "Comment created successfully"),
-    );
+    .json(new ApiResponse(201, comment, "Comment created successfully"));
 });
 
 export const getCommentsByTicket = asyncHandler(async (req, res) => {
@@ -151,22 +114,95 @@ export const getCommentsByTicket = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
 
-  const query = { ticket: ticketId };
+  const matchStage = {
+    ticket: new mongoose.Types.ObjectId(ticketId),
+  };
 
-  // Employees can't see internal notes
+  // Hide internal notes from regular employees/customers
   if (req.user.role === "employee") {
-    query.isInternalNote = false;
+    matchStage.isInternalNote = false;
   }
 
-  const [comments, totalComments] = await Promise.all([
-    Comment.find(query)
-      .sort({ createdAt: 1 })
-      .skip(skip)
-      .limit(limit)
-      .populate("author", "name email role avatar"),
+  const pipeline = [
+    { $match: matchStage },
+    { $sort: { createdAt: 1 } },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+          // 1. LOOKUP: Get details of the COMMENT AUTHOR
+          {
+            $lookup: {
+              from: "users",
+              localField: "author",
+              foreignField: "_id",
+              as: "author",
+              pipeline: [
+                {
+                  $project: {
+                    username: 1,
+                    fullName: 1, // Added: Assuming this field exists in your User model
+                    email: 1,
+                    role: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          { $unwind: "$author" },
 
-    Comment.countDocuments(query),
-  ]);
+          // 2. LOOKUP: Get details of the PARENT COMMENT (if it exists)
+          {
+            $lookup: {
+              from: "comments",
+              localField: "parentComment",
+              foreignField: "_id",
+              as: "parentComment",
+              pipeline: [
+                { $project: { content: 1, author: 1 } },
+                // 3. NESTED LOOKUP: Get the AUTHOR of the PARENT comment
+                {
+                  $lookup: {
+                    from: "users",
+                    localField: "author",
+                    foreignField: "_id",
+                    as: "author",
+                    pipeline: [
+                      {
+                        $project: {
+                          username: 1,
+                          fullName: 1,
+                          email: 1,
+                          role: 1,
+                          avatar: 1,
+                        },
+                      },
+                    ],
+                  },
+                },
+                { $unwind: "$author" },
+              ],
+            },
+          },
+          // Unwind parentComment, but keep it null if there is no parent
+          {
+            $unwind: {
+              path: "$parentComment",
+              preserveNullAndEmptyArrays: true,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const result = await Comment.aggregate(pipeline);
+
+  const comments = result[0].data;
+  const totalComments = result[0].metadata[0]?.total || 0;
 
   return res.status(200).json(
     new ApiResponse(
@@ -189,23 +225,19 @@ export const updateComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
   const { content, isInternalNote } = req.body;
 
-  // Validate ID
   if (!mongoose.isValidObjectId(commentId)) {
     throw new ApiError(400, "Invalid comment ID");
   }
 
-  // Find comment
   const comment = await Comment.findById(commentId);
-  if (!comment) {
-    throw new ApiError(404, "Comment not found");
-  }
+  if (!comment) throw new ApiError(404, "Comment not found");
 
-  // Can't edit system logs
+  // 1. Restriction: System activities cannot be edited
   if (comment.type === "activity") {
     throw new ApiError(400, "Cannot edit system logs");
   }
 
-  // Check permissions
+  // 2. Permission Check: Must be Owner OR Admin
   const isOwner = comment.author.toString() === req.user._id.toString();
   const isAdmin = req.user.role === "admin";
 
@@ -213,45 +245,33 @@ export const updateComment = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You can only edit your own comments");
   }
 
-  // Build update object
   const updates = {};
 
   if (content !== undefined) {
     const trimmed = content.trim();
-    if (!trimmed) {
-      throw new ApiError(400, "Comment cannot be empty");
-    }
+    if (!trimmed) throw new ApiError(400, "Comment cannot be empty");
     updates.content = trimmed;
   }
 
   if (isInternalNote !== undefined) {
-    // Only staff can change internal note flag
-    if (req.user.role !== "admin" && req.user.role !== "agent") {
-      throw new ApiError(403, "Only staff can change internal note status");
+    if (req.user.role === "admin" || req.user.role === "agent") {
+      updates.isInternalNote =
+        isInternalNote === true || isInternalNote === "true";
     }
-    updates.isInternalNote =
-      isInternalNote === true || isInternalNote === "true";
   }
 
-  // Must have something to update
+  // 5. Ensure there is something to update
   if (Object.keys(updates).length === 0) {
+    // If a regular user sent only isInternalNote (which we ignored) and no content change
     throw new ApiError(400, "Nothing to update");
   }
 
-  // Track edit
   updates.editedAt = new Date();
   updates.lastEditedBy = req.user._id;
 
-  // Update
   const updatedComment = await Comment.findByIdAndUpdate(commentId, updates, {
     new: true,
-  }).populate("author", "name email role avatar");
-
-  sendSocketEvent(
-    "comment:update",
-    updatedComment.ticket.toString(),
-    updatedComment,
-  );
+  }).populate("author", "name fullName email role avatar");
 
   return res
     .status(200)
@@ -260,20 +280,14 @@ export const updateComment = asyncHandler(async (req, res) => {
 
 export const deleteComment = asyncHandler(async (req, res) => {
   const { commentId } = req.params;
-  const { force } = req.query;
 
-  // Validate ID
   if (!mongoose.isValidObjectId(commentId)) {
     throw new ApiError(400, "Invalid comment ID");
   }
 
-  // Find comment
   const comment = await Comment.findById(commentId);
-  if (!comment) {
-    throw new ApiError(404, "Comment not found");
-  }
+  if (!comment) throw new ApiError(404, "Comment not found");
 
-  // Check permissions
   const isOwner = comment.author.toString() === req.user._id.toString();
   const isAdmin = req.user.role === "admin";
 
@@ -281,35 +295,17 @@ export const deleteComment = asyncHandler(async (req, res) => {
     throw new ApiError(403, "You can only delete your own comments");
   }
 
-  // Employees can't delete internal notes
   if (req.user.role === "employee" && comment.isInternalNote) {
     throw new ApiError(403, "You cannot delete internal notes");
   }
 
-  const replyCount = await Comment.countDocuments({
-    parentComment: commentId,
-  });
+  const replyCount = await Comment.countDocuments({ parentComment: commentId });
 
-  if (replyCount > 0 && force !== "true") {
-    throw new ApiError(
-      400,
-      `This comment has ${replyCount} ${replyCount === 1 ? "reply" : "replies"}. ` +
-        `Add ?force=true to URL to delete all.`,
-    );
-  }
-
-  // Delete replies first (if any)
   if (replyCount > 0) {
     await Comment.deleteMany({ parentComment: commentId });
   }
 
-  // Delete the comment
   await Comment.deleteOne({ _id: commentId });
-
-  sendSocketEvent("comment:delete", comment.ticket.toString(), {
-    commentId,
-    deletedReplies: replyCount,
-  });
 
   return res
     .status(200)
