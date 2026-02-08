@@ -141,6 +141,22 @@ export const authApi = createApi({
       },
       invalidatesTags: ["User"],
     }),
+    changePassword: builder.mutation({
+      query: (passwords) => ({
+        url: "/users/change-password",
+        method: "PATCH",
+        body: passwords,
+      }),
+      transformResponse: (response) => response.data,
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          // Optionally, you can handle post-password-change logic here
+        } catch (error) {
+          console.error("Change password failed:", error);
+        }
+      },
+    }),
 
     updateAccount: builder.mutation({
       query: (details) => ({
