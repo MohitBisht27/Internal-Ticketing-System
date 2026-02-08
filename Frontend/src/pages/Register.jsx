@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useRegisterMutation } from "../features/authSlice/authApiSlice";
 import {
   User,
@@ -194,6 +195,16 @@ const Register = () => {
             text="Registration successful! Welcome aboard."
           />
         )}
+
+        <div className="text-center text-sm text-gray-600">
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="font-medium text-emerald-600 hover:text-emerald-700"
+          >
+            Sign in
+          </Link>
+        </div>
       </form>
     </AuthCard>
   );

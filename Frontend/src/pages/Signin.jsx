@@ -3,7 +3,7 @@ import { useLoginMutation } from "../features/authSlice/authApiSlice";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "../features/authSlice/authSlice";
 import { LogIn, Mail, Lock, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import AuthCard from "../components/auth/AuthCard";
 import TextInput from "../components/auth/TextInput";
 import PasswordInput from "../components/auth/PasswordInput";
@@ -124,6 +124,16 @@ const SignIn = () => {
             text="Login successful! Redirecting..."
           />
         )}
+
+        <div className="text-center text-sm text-gray-600">
+          Don&apos;t have an account?{" "}
+          <Link
+            to="/register"
+            className="font-medium text-emerald-600 hover:text-emerald-700"
+          >
+            Register
+          </Link>
+        </div>
       </form>
     </AuthCard>
   );
