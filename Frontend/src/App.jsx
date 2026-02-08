@@ -12,6 +12,7 @@ import AgentPerformance from "./pages/AgentPerformance";
 import AssignTickets from "./pages/AssignTicket";
 import PersistLogin from "./components/PersistLogin";
 import PublicRoute from "./components/PublicRoute";
+import ProfilePage from "./pages/ProfilePage";
 function App() {
   return (
     <Routes>
@@ -26,6 +27,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/tickets" element={<TicketList />} />
             <Route path="/tickets/create" element={<CreateTicket />} />

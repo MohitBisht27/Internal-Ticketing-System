@@ -219,22 +219,39 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user?._id);
   if (!user) throw new ApiError(404, "User not found");
 
+  // Delete old avatar from cloudinary
   if (user.avatar?.public_id) {
     await cloudinary.uploader.destroy(user.avatar.public_id);
   }
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-  if (!avatar?.url)
-    throw new ApiError(400, "Error while uploading cover image");
 
-  user.avatar = {
-    url: avatar.url,
-    public_id: avatar.public_id,
-  };
-  await user.save();
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar?.url) {
+    throw new ApiError(400, "Error while uploading avatar");
+  }
+
+  // Use findByIdAndUpdate to avoid triggering save middleware (like password hashing)
+  const updatedUser = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        avatar: {
+          url: avatar.url,
+          public_id: avatar.public_id,
+        },
+      },
+    },
+    { new: true },
+  ).select("-password -refreshToken");
+
+  if (!updatedUser) {
+    throw new ApiError(500, "Failed to update avatar");
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "Avatar image updated successfully"));
+    .json(
+      new ApiResponse(200, updatedUser, "Avatar image updated successfully"),
+    );
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {

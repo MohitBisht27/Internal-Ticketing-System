@@ -12,15 +12,20 @@ const authSlice = createSlice({
   reducers: {
     setCredentials: (state, action) => {
       const { user, token } = action.payload;
-      // Debug log to confirm Action reached Redux
-      // console.log(
-      //   "Redux setCredentials running. Token:",
-      //   token ? "Exists" : "Null",
-      // );
 
-      state.user = user;
-      state.token = token;
-      state.isAuthenticated = !!token; // True if token exists
+      // MERGE user data instead of replacing
+      // This prevents wiping fields during partial updates (like avatar)
+      if (user) {
+        state.user = state.user ? { ...state.user, ...user } : user;
+      }
+
+      // Only update token if explicitly provided
+      if (token !== undefined) {
+        state.token = token;
+      }
+
+      // Derive auth status from the CURRENT state (after merge)
+      state.isAuthenticated = !!state.token;
     },
     logout: (state) => {
       state.user = null;

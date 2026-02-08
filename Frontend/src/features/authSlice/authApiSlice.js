@@ -124,7 +124,6 @@ export const authApi = createApi({
       transformResponse: (response) => response.data,
       providesTags: [{ type: "User", id: "AGENT_LIST" }],
     }),
-
     updateAvatar: builder.mutation({
       query: (formData) => ({
         url: "/users/avatar",
@@ -132,13 +131,28 @@ export const authApi = createApi({
         body: formData,
       }),
       transformResponse: (response) => response.data,
-      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+
+      async onQueryStarted(arg, { dispatch, queryFulfilled, getState }) {
         try {
-          const { data } = await queryFulfilled;
-          // Update the user object in Redux state immediately
-          dispatch(setCredentials({ user: data }));
-        } catch (error) {}
+          const { data: updatedUser } = await queryFulfilled;
+
+          if (!updatedUser) {
+            console.error("No user data returned from avatar update");
+            return;
+          }
+
+          // Update Redux auth state (for components using useSelector)
+          dispatch(
+            setCredentials({
+              user: updatedUser,
+            }),
+          );
+        } catch (error) {
+          console.error("Avatar update failed:", error);
+        }
       },
+
+      // This automatically refetches getCurrentUser
       invalidatesTags: ["User"],
     }),
     changePassword: builder.mutation({
