@@ -155,42 +155,10 @@ export const authApi = createApi({
       // This automatically refetches getCurrentUser
       invalidatesTags: ["User"],
     }),
-    changePassword: builder.mutation({
-      query: (passwords) => ({
-        url: "/users/change-password",
-        method: "PATCH",
-        body: passwords,
-      }),
-      transformResponse: (response) => response.data,
-      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-        try {
-          await queryFulfilled;
-          // Optionally, you can handle post-password-change logic here
-        } catch (error) {
-          console.error("Change password failed:", error);
-        }
-      },
-    }),
-
-    updateAccount: builder.mutation({
-      query: (details) => ({
-        url: "/users/update-account",
-        method: "PATCH",
-        body: details,
-      }),
-      transformResponse: (response) => response.data,
-      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
-        try {
-          const { data } = await queryFulfilled;
-          dispatch(setCredentials({ user: data }));
-        } catch (error) {}
-      },
-      invalidatesTags: ["User"],
-    }),
 
     logout: builder.mutation({
       query: () => ({
-        url: "/users/logout", // Ensure this path matches your backend
+        url: "/users/logout",
         method: "POST",
       }),
       async onQueryStarted(arg, { dispatch, queryFulfilled }) {
@@ -217,7 +185,6 @@ export const {
   useGetAllAgentsQuery,
   useGetCurrentUserQuery,
   useUpdateAvatarMutation,
-  useUpdateAccountMutation,
   useLogoutMutation,
   useRefreshMutation,
 } = authApi;
