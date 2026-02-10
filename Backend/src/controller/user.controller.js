@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { User } from "../model/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import cloudinary from "cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 import jwt from "jsonwebtoken";
 const options = {
   httpOnly: true,
