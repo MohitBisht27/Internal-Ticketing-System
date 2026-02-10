@@ -8,7 +8,7 @@ import jwt from "jsonwebtoken";
 const options = {
   httpOnly: true,
   secure: true,
-  sameSite: "strict",
+  sameSite: "None",
   maxAge: 1 * 24 * 60 * 60 * 1000,
   path: "/",
 };
@@ -97,7 +97,7 @@ const loggedInUser = asyncHandler(async (req, res) => {
     user._id,
   );
 
-  const loggedInUser = await User.findByIdAndUpdate(user._id).select(
+  const loggedInUser = await User.findById(user._id).select(
     "-password -refreshToken",
   );
 
