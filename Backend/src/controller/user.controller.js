@@ -301,9 +301,7 @@ export {
   loggedInUser,
   logoutUser,
   refreshAccessToken,
-  changeCurrentPassword,
   getCurrentUser,
   updateUserAvatar,
   getAllAgents,
-  updateAccountDetails,
 };
