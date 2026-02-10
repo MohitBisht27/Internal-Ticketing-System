@@ -15,8 +15,6 @@ import {
   LogOut,
   User,
   ChevronDown,
-  Bell,
-  Settings,
   UserPlus,
 } from "lucide-react";
 
@@ -121,7 +119,7 @@ const Layout = () => {
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <Link to="/dashboard" className="flex items-center gap-2">
             <Ticket className="w-8 h-8 text-blue-600" />
-            <span className="text-xl font-bold text-gray-900">TicketHub</span>
+            <span className="text-xl font-bold text-gray-900">Fxora</span>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
@@ -181,11 +179,6 @@ const Layout = () => {
             <div className="flex-1 lg:ml-0" />
 
             <div className="flex items-center gap-4">
-              <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-              </button>
-
               <div className="relative">
                 <button
                   onClick={(e) => {
