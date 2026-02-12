@@ -37,7 +37,6 @@ const TicketDetail = () => {
     useUpdateTicketStatusMutation();
 
   const [showStatusModal, setShowStatusModal] = useState(false);
-  // New State for toggling comments
   const [showComments, setShowComments] = useState(true);
 
   const ticket = data?.data;
@@ -66,7 +65,6 @@ const TicketDetail = () => {
     closed: [],
   };
 
-  // Helper Functions
   const formatDate = (date) => {
     return new Date(date).toLocaleString("en-US", {
       month: "short",
@@ -88,7 +86,7 @@ const TicketDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
+      <div className="flex items-center justify-center h-full bg-gray-50 min-h-[calc(100vh-64px)]">
         <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
       </div>
     );
@@ -120,23 +118,21 @@ const TicketDetail = () => {
   const availableStatuses = validTransitions[ticket.status] || [];
 
   return (
-    <div className="min-h-screen bg-gray-50/50 pb-20">
-      {/* Top Navigation Bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group px-3 py-1.5 rounded-lg hover:bg-gray-100"
-          >
-            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
-            <span className="font-medium text-sm">Back to Tickets</span>
-          </button>
-        </div>
+    <div className="bg-gray-50/50 min-h-screen pb-20 p-4 sm:p-6 lg:p-8">
+      {/* 1. Back Button Card - Matches screenshot top bar */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-6">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors group px-2"
+        >
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+          <span className="font-medium text-sm">Back to Tickets</span>
+        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Ticket Header (Title & Actions) */}
-        <div className="mb-8">
+      <div className="max-w-full mx-auto">
+        {/* 2. Ticket Header Card - Matches the "TIC-160172" white box */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 mb-8">
           <TicketHeader
             ticket={ticket}
             statusColors={statusColors}
@@ -150,16 +146,20 @@ const TicketDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* --- LEFT COLUMN (Content & Conversation) --- */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Ticket Context Card */}
+            {/* Description Card */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex items-center gap-2">
+              <div className="px-6 py-4 border-b border-gray-100 bg-white flex items-center gap-2">
                 <FileText className="w-4 h-4 text-slate-500" />
                 <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Description & Attachments
                 </h2>
               </div>
               <div className="p-6">
-                <TicketDescription description={ticket.description} />
+                {/* Inner border box for description text as seen in screenshot */}
+                <div className="border border-gray-100 rounded-lg p-6 mb-6">
+                  <TicketDescription description={ticket.description} />
+                </div>
+
                 {ticket.attachments && ticket.attachments.length > 0 && (
                   <div className="mt-6 pt-6 border-t border-gray-100">
                     <TicketAttachments attachments={ticket.attachments} />
@@ -188,7 +188,7 @@ const TicketDetail = () => {
               <div className="flex-grow border-t border-gray-200"></div>
             </div>
 
-            {/* Comments Section (Collapsible) */}
+            {/* Comments Section */}
             <div
               className={`transition-all duration-300 ease-in-out ${showComments ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 h-0 overflow-hidden"}`}
             >
@@ -207,25 +207,25 @@ const TicketDetail = () => {
             )}
           </div>
 
-          {/* --- RIGHT COLUMN (Sticky Sidebar) --- */}
-          <div className="lg:col-span-4">
-            <div className="sticky top-24 space-y-6">
-              {/* Meta Card */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">
-                  Ticket Info
-                </h3>
-                <TicketMeta ticket={ticket} formatDate={formatDate} />
-              </div>
+          {/* --- RIGHT COLUMN (Ticket Info) --- */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Ticket Info Card - Matches screenshot Sidebar */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">
+                Ticket Info
+              </h3>
+              <TicketMeta ticket={ticket} formatDate={formatDate} />
+            </div>
 
-              {/* Tags Card */}
+            {/* Tags Card  */}
+            {ticket.tags && ticket.tags.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4 border-b border-gray-50 pb-2">
                   Tags
                 </h3>
                 <TicketTags tags={ticket.tags} />
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
