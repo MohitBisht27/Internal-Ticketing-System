@@ -86,7 +86,6 @@ const SignIn = () => {
           required
           autoFocus
         />
-
         <PasswordInput
           icon={Lock}
           name="password"
@@ -96,27 +95,15 @@ const SignIn = () => {
           show={showPassword}
           toggle={() => setShowPassword(!showPassword)}
           required
-        />
-
-        <div className="text-right">
-          <a
-            href="/forgot-password"
-            className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-          >
-            Forgot password?
-          </a>
-        </div>
-
+        />{" "}
         <SubmitButton
           loading={isLoading}
           text="Sign In"
           loadingText="Signing In..."
         />
-
         {serverError && (
           <Message icon={AlertCircle} type="error" text={serverError} />
         )}
-
         {showSuccess && (
           <Message
             icon={CheckCircle2}
@@ -124,7 +111,6 @@ const SignIn = () => {
             text="Login successful! Redirecting..."
           />
         )}
-
         <div className="text-center text-sm text-gray-600">
           Don&apos;t have an account?{" "}
           <Link
