@@ -84,7 +84,7 @@ const Register = () => {
         reset();
         setShowSuccess(false);
         navigate("/login");
-      }, 5000);
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
