@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useRegisterMutation } from "../features/authSlice/authApiSlice";
 import {
   User,
@@ -31,7 +31,7 @@ const initialFormState = {
 
 const Register = () => {
   const [register, { isLoading, isSuccess, reset }] = useRegisterMutation();
-
+  const navigate = useNavigate();
   const [formData, setFormData] = useState(initialFormState);
   const [avatar, setAvatar] = useState(null);
   const [serverError, setServerError] = useState("");
@@ -83,11 +83,12 @@ const Register = () => {
       const timer = setTimeout(() => {
         reset();
         setShowSuccess(false);
+        navigate("/login");
       }, 5000);
 
       return () => clearTimeout(timer);
     }
-  }, [isSuccess, reset]);
+  }, [isSuccess, reset, navigate]);
 
   return (
     <AuthCard
