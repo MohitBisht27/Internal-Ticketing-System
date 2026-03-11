@@ -38,19 +38,6 @@ const QuickActions = ({ user }) => {
         {user?.role === "admin" && (
           <>
             <Link
-              to="/admin/tickets"
-              className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
-            >
-              <div className="flex items-center gap-3">
-                <TrendingUp className="w-5 h-5 text-purple-600" />
-                <span className="font-medium text-gray-900">
-                  Manage All Tickets
-                </span>
-              </div>
-              <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" />
-            </Link>
-
-            <Link
               to="/admin/performance"
               className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
             >
