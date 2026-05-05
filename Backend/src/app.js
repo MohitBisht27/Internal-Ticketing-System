@@ -24,10 +24,4 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/tickets", ticketRoute);
 app.use("/api/v1/comments", commentRoute);
 
-const PORT = process.env.PORT || 8000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
-
 export { app };
