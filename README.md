@@ -158,7 +158,7 @@ Base URL: `/api/v1`
 - `DELETE /comments/:commentId` (owner/admin)
 
 ## Environment Variables
-Create `/home/runner/work/Internal-Ticketing-System/Internal-Ticketing-System/Backend/.env` with:
+Create `Backend/.env` with:
 
 ```env
 PORT=8000
