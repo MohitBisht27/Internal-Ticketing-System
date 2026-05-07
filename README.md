@@ -163,6 +163,8 @@ Create `Backend/.env` with:
 ```env
 PORT=8000
 MONGODB_URI=mongodb://localhost:27017
+# Production example:
+# MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-host>
 CORS_ORIGIN=http://localhost:5173
 ACCESS_TOKEN_SECRET=your_access_token_secret
 ACCESS_TOKEN_EXPIRY=1d
@@ -175,7 +177,7 @@ CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 
 > Note: The backend appends the DB name (`InternalTicketing`) internally, so keep `MONGODB_URI` as the server/cluster URI (without adding `/InternalTicketing` yourself).
 >
-> The value above is a local-development example. For production, use a credentialed connection string (for example, an authenticated MongoDB Atlas URI).
+> The value above is a local-development example. For production, use an authenticated connection string (for example, an authenticated MongoDB Atlas URI).
 
 ## Local Development Setup
 
