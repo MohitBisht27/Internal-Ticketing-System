@@ -1,132 +1,238 @@
 # Internal Ticketing System
 
-An efficient and robust Internal Ticketing System designed to streamline issue tracking and resolution within organizations. Built with the MERN stack (MongoDB, Express, React, Node.js), this application enables employees to report issues, agents to manage and resolve tickets, and administrators to oversee the entire process.
+A full-stack MERN internal support platform where employees can raise tickets, agents can resolve them, and admins can monitor workload and performance.
 
-## 🚀 Features
+## Table of Contents
+- [Overview](#overview)
+- [Core Capabilities](#core-capabilities)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Data Model](#data-model)
+- [Authentication and Authorization](#authentication-and-authorization)
+- [API Reference](#api-reference)
+- [Environment Variables](#environment-variables)
+- [Local Development Setup](#local-development-setup)
+- [Available Scripts](#available-scripts)
+- [Deployment Notes](#deployment-notes)
+- [Validation and Known Baseline Issues](#validation-and-known-baseline-issues)
+- [Troubleshooting](#troubleshooting)
+- [Future Improvements](#future-improvements)
 
-- **Role-Based Access Control (RBAC):** Distinct roles for Employees, Agents, and Administrators.
-- **Ticket Management:** Create, read, update, and delete tickets.
-- **Ticket Lifecycle:** Track status from 'Open' to 'Closed' with intermediate states like 'In Progress' and 'Resolved'.
-- **Prioritization & Categorization:** Assign priority levels (Low, Medium, High, Critical) and categories (Software, Hardware, Network, etc.) to tickets.
-- **Assignment System:** Assign tickets to specific agents for resolution.
-- **Commenting System:** Discuss issues directly within the ticket thread.
-- **Real-time Updates:** (If applicable, or usually implies quick state updates via React).
-- **Secure Authentication:** JWT-based authentication with secure cookie handling.
-- **File Attachments:** Support for uploading attachments using Cloudinary.
-- **Dashboard & Analytics:** Visual insights into ticket status and agent performance.
+## Overview
+The Internal Ticketing System helps organizations manage issue reporting and resolution workflows with:
+- role-based access control (`employee`, `agent`, `admin`)
+- SLA-driven deadlines and overdue tracking
+- attachment uploads (Cloudinary)
+- threaded comments with internal notes
+- ticket statistics and agent performance analytics
 
-## 🛠️ Tech Stack
+## Core Capabilities
+
+### Employee
+- Register and log in
+- Create tickets with category, priority, tags, and attachments
+- View only own tickets
+- View and participate in ticket comments
+
+### Agent
+- View assigned and open unassigned tickets
+- Update ticket status through allowed transitions
+- Add/update comments and internal notes
+
+### Admin
+- Assign tickets to agents (with active workload limit)
+- View all tickets with filters and pagination
+- View agent performance dashboard
+- Trigger overdue ticket recalculation
+- Access list of active agents with workload context
+
+## Tech Stack
 
 ### Backend
-- **Node.js** & **Express.js**: RESTful API and server logic.
-- **MongoDB** & **Mongoose**: Database and object modeling.
-- **JWT (JSON Web Tokens)**: Secure user authentication.
-- **Cloudinary**: Cloud-based image and file management.
-- **Multer**: Middleware for handling `multipart/form-data`.
-- **Bcrypt**: Password hashing for security.
+- Node.js + Express
+- MongoDB + Mongoose
+- JWT authentication
+- Multer + Cloudinary for file uploads
+- Cookie parser + CORS
 
 ### Frontend
-- **React.js (Vite)**: Fast and modern frontend framework.
-- **Redux Toolkit**: Efficient state management.
-- **Tailwind CSS**: Utility-first CSS framework for styling.
-- **React Router DOM**: Client-side routing.
-- **Lucide React**: Beautiful and consistent icons.
+- React (Vite)
+- Redux Toolkit + RTK Query
+- React Router
+- Tailwind CSS
+- Lucide icons
 
-## 📂 Project Structure
+## Architecture
+- **Frontend** is a React SPA.
+- **Backend** exposes REST APIs under `/api/v1`.
+- Frontend uses RTK Query to call backend APIs.
+- Access token is sent in `Authorization: Bearer <token>`.
+- Refresh token is stored in secure HTTP-only cookie.
 
-```
-Internal Ticketing System/
-├── Backend/                # Server-side application
+## Repository Structure
+
+```text
+Internal-Ticketing-System/
+├── Backend/
 │   ├── src/
-│   │   ├── controllers/    # Request handlers
-│   │   ├── db/             # Database connection
-│   │   ├── middlewares/    # Custom middlewares (Auth, Uploads)
-│   │   ├── models/         # Mongoose schemas (User, Ticket, Comment)
-│   │   ├── routes/         # API routes
-│   │   └── utils/          # Utility functions
-│   ├── package.json
-│   └── ...
-└── Frontend/               # Client-side application
-    ├── src/
-    │   ├── app/            # Redux store configuration
-    │   ├── components/     # Reusable UI components
-    │   ├── features/       # Redux slices
-    │   ├── pages/          # Application pages/views
-    │   └── ...
-    ├── package.json
-    └── ...
+│   │   ├── app.js
+│   │   ├── index.js
+│   │   ├── constants.js
+│   │   ├── controller/
+│   │   ├── db/
+│   │   ├── middlewares/
+│   │   ├── model/
+│   │   ├── routes/
+│   │   └── utils/
+│   └── package.json
+├── Frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── features/
+│   │   └── pages/
+│   └── package.json
+├── netlify.toml
+└── README.md
 ```
 
-## ⚙️ Installation & Setup
+## Data Model
 
-Follow these steps to set up the project locally.
+### User
+Key fields:
+- `fullName`, `username`, `email`, `password`
+- `department` (`Engineering`, `HR`, `Finance`, `Customer Success`, `Operations`, `IT`)
+- `role` (`employee`, `agent`, `admin`)
+- `avatar`, `refreshToken`, `isActive`
 
-### Prerequisites
-- Node.js (v14+ recommended)
-- MongoDB (Local or Atlas connection string)
-- Cloudinary Account (for file uploads)
+### Ticket
+Key fields:
+- `ticketId` (generated format: `TIC-XXXXXX`)
+- `title`, `description`, `category`, `priority`, `tags`
+- `status` (`open`, `in-progress`, `on-hold`, `resolved`, `closed`)
+- `createdBy`, `assignedTo`, `deadline`, `isOverdue`, `attachments`
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/MohitBisht27/Internal-Ticketing-System.git
-cd internal-ticketing-system
-```
+### Comment
+Key fields:
+- `ticket`, `author`, `content`
+- `parentComment` (threading)
+- `attachments`
+- `isInternalNote`
+- `type` (`message`, `activity`)
 
-### 2. Backend Setup
-Navigate to the backend directory and install dependencies:
-```bash
-cd Backend
-npm install
-```
+## Authentication and Authorization
+- Login returns `accessToken` + `refreshToken`.
+- Protected routes require bearer token.
+- Backend `verifyJWT` middleware validates and hydrates `req.user`.
+- `checkRole([...])` middleware gates admin/agent operations.
 
-Create a `.env` file in the `Backend` root and configure the following variables:
+## API Reference
+Base URL: `/api/v1`
+
+### User APIs
+- `POST /users/register` (multipart, includes `avatar`)
+- `POST /users/login`
+- `POST /users/refresh-token`
+- `POST /users/logout` (auth required)
+- `GET /users/current-user` (auth required)
+- `PATCH /users/avatar` (auth required, multipart)
+- `GET /users/agents` (admin only)
+
+### Ticket APIs
+- `POST /tickets` (employee only, multipart `attachments[]`)
+- `GET /tickets`
+  - supports `page`, `limit`, `search`, `status`, `priority`, `category`, `isOverdue`, `sortBy`, `sortOrder`
+- `GET /tickets/:ticketId`
+- `PATCH /tickets/:ticketId` (agent/admin; status transition rules enforced)
+- `PATCH /tickets/:ticketId/assign` (admin only)
+- `GET /tickets/stats`
+- `GET /tickets/performance` (admin only)
+- `GET /tickets/admin/all` (admin only)
+- `PATCH /tickets/update-overdue` (admin only)
+
+### Comment APIs
+- `POST /comments/:ticketId/comments` (auth, multipart optional attachments)
+- `GET /comments/:ticketId/comments` (auth, pagination via `page` and `limit`)
+- `PATCH /comments/:commentId` (owner/admin)
+- `DELETE /comments/:commentId` (owner/admin)
+
+## Environment Variables
+Create `/home/runner/work/Internal-Ticketing-System/Internal-Ticketing-System/Backend/.env` with:
+
 ```env
 PORT=8000
-MONGODB_URI=your_mongodb_connection_string
+MONGODB_URI=mongodb://localhost:27017
 CORS_ORIGIN=http://localhost:5173
 ACCESS_TOKEN_SECRET=your_access_token_secret
 ACCESS_TOKEN_EXPIRY=1d
 REFRESH_TOKEN_SECRET=your_refresh_token_secret
 REFRESH_TOKEN_EXPIRY=10d
 CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
 
-Start the backend server:
+## Local Development Setup
+
+### 1) Clone
 ```bash
+git clone https://github.com/MohitBisht27/Internal-Ticketing-System.git
+cd Internal-Ticketing-System
+```
+
+### 2) Backend
+```bash
+cd Backend
+npm install
 npm run dev
 ```
 
-### 3. Frontend Setup
-Open a new terminal, navigate to the frontend directory, and install dependencies:
+Backend runs on `http://localhost:8000`.
+
+### 3) Frontend
+Open a new terminal:
 ```bash
 cd Frontend
 npm install
-```
-
-Start the frontend development server:
-```bash
 npm run dev
 ```
 
-The application should now be running at `http://localhost:5173`.
+Frontend runs on `http://localhost:5173`.
 
-## 🔌 API Endpoints
+## Available Scripts
 
-### Auth
-- `POST /api/v1/users/register` - Register a new user
-- `POST /api/v1/users/login` - Login user
-- `POST /api/v1/users/logout` - Logout user
-- `POST /api/v1/users/refresh-token` - Refresh access token
+### Backend (`Backend/package.json`)
+- `npm run dev` - start backend with nodemon
+- `npm run start` - start backend with node
 
-### Tickets
-- `GET /api/v1/tickets` - Get all tickets
-- `POST /api/v1/tickets` - Create a new ticket
-- `GET /api/v1/tickets/:id` - Get ticket details
-- `PATCH /api/v1/tickets/:id` - Update ticket status/details
-- `DELETE /api/v1/tickets/:id` - Delete a ticket
+### Frontend (`Frontend/package.json`)
+- `npm run dev` - start Vite dev server
+- `npm run build` - production build
+- `npm run lint` - run ESLint
+- `npm run preview` - preview production build
 
-### Comments
-- `GET /api/v1/comments/:ticketId` - Get comments for a ticket
-- `POST /api/v1/comments/:ticketId` - Add a comment
+## Deployment Notes
+- Frontend is configured for Netlify (`netlify.toml`).
+- Production API base URL in frontend is currently hardcoded to:
+  - `https://internalticketingsystem.onrender.com/api/v1`
+- If deploying to a different backend URL, update `Frontend/src/features/authSlice/authApiSlice.js`.
+
+## Validation and Known Baseline Issues
+Validation run in this repository:
+- Frontend build: ✅ passes (`npm run build`)
+- Frontend lint: ❌ fails due to existing unused variable issues
+- Backend start: ❌ fails without valid MongoDB env configuration
+
+These are baseline project-state issues and not introduced by documentation changes.
+
+## Troubleshooting
+- **Mongo parse error on backend start**: ensure `MONGODB_URI` is set to a valid URI (`mongodb://...` or `mongodb+srv://...`).
+- **CORS/auth problems**: confirm `CORS_ORIGIN` matches frontend origin and cookies are allowed.
+- **Cloudinary uploads failing**: verify all Cloudinary env values.
+
+## Future Improvements
+- Move frontend API base URL to environment variables.
+- Add backend lint/test scripts.
+- Add API OpenAPI/Swagger spec.
+- Add CI workflows for lint/build/test automation.
