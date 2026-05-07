@@ -178,6 +178,7 @@ CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 > Note: The backend appends the DB name (`InternalTicketing`) internally, so keep `MONGODB_URI` as the server/cluster URI (without adding `/InternalTicketing` yourself).
 >
 > The value above is a local-development example. For production, use an authenticated connection string (for example, an authenticated MongoDB Atlas URI).
+> Do **not** use unauthenticated MongoDB connections in production.
 
 ## Local Development Setup
 
@@ -223,12 +224,13 @@ Frontend runs on `http://localhost:5173`.
 - The frontend is currently configured with this API base URL:
   - `https://internalticketingsystem.onrender.com/api/v1`
 - This is the endpoint used by this repository at the moment. For your own deployment, **replace this URL** in `Frontend/src/features/authSlice/authApiSlice.js` with your backend API URL.
+- Also search for additional URL references if you later introduce environment files or dedicated API utility modules.
 
 ## Validation and Known Baseline Issues
 Validation run in this repository:
 - Frontend build: ✅ passes (`npm run build`)
 - Frontend lint: ❌ fails due to existing unused variable issues
-- Backend start: ❌ fails without valid MongoDB env configuration
+- Backend start: ❌ fails without valid MongoDB env configuration (expected until `Backend/.env` is configured as shown above)
 
 These are baseline project-state issues and not introduced by documentation changes.
 
