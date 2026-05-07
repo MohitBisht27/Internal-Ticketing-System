@@ -173,6 +173,8 @@ CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
 
+> Note: The backend appends the DB name (`InternalTicketing`) internally, so keep `MONGODB_URI` as the server/cluster URI (without adding `/InternalTicketing` yourself).
+
 ## Local Development Setup
 
 ### 1) Clone
@@ -214,9 +216,9 @@ Frontend runs on `http://localhost:5173`.
 
 ## Deployment Notes
 - Frontend is configured for Netlify (`netlify.toml`).
-- Production API base URL in frontend is currently hardcoded to:
+- The frontend is currently configured with this API base URL:
   - `https://internalticketingsystem.onrender.com/api/v1`
-- If deploying to a different backend URL, update `Frontend/src/features/authSlice/authApiSlice.js`.
+- This is the endpoint used by this repository at the moment; if you deploy your own backend, update `Frontend/src/features/authSlice/authApiSlice.js` accordingly.
 
 ## Validation and Known Baseline Issues
 Validation run in this repository:
