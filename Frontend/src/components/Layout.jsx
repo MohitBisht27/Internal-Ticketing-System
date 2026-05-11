@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"; // Added useEffect
+import { useState, useEffect } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-// Make sure this path points to where you saved the API file (e.g., ../features/api/authApi)
+
 import { useLogoutMutation } from "../features/authSlice/authApiSlice";
 import { logout, selectCurrentUser } from "../features/authSlice/authSlice";
 import {
